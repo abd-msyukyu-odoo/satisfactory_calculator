@@ -13,7 +13,7 @@ class Recipe:
         self.efficiency = 100
         self.key = data["key"]
         self.coefficient = 1.321928
-    
+
     def scaled_power(self):
         if not self.building or not self.power:
             return 0

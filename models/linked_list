@@ -1,0 +1,47 @@
+class Node:
+    def __init__(self, value):
+        self.value = value
+        self.next = None
+
+
+class LinkedList:
+    def __init__(self, value=None):
+        head = None
+        if value is not None:
+            head = Node(value)
+        self.head = head
+        self.tail = head
+
+    def append(self, value):
+        new_node = Node(value)
+        if not self.head:
+            self.head = new_node
+            self.tail = new_node
+            return True
+        self.tail.next = new_node
+        if self.has_cycle():
+            self.tail.next = None
+            return False
+        self.tail = new_node
+        return True
+
+    def copy(self):
+        copy = LinkedList(self.head.value)
+        current = self.head
+        if not current:
+            return copy
+        while current.next:
+            current = current.next
+            copy.tail.next = Node(current.value)
+            copy.tail = copy.tail.next
+        return copy
+
+    def has_cycle(self):
+        slow = self.head
+        fast = self.head
+        while fast and fast.next:
+            slow = slow.next
+            fast = fast.next.next
+            if slow == fast:
+                return True
+        return False
