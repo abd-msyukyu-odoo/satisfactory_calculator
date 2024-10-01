@@ -30,3 +30,15 @@ logique d'aggregation
 aggreger les quantites de batiments identiques
 ```
 
+logique de mapping A_def (recipes) and B_def (resources)
+
+```
+each id in A_def has an id in google sheet
+each id in B_def has an id in google sheet
+```
+
+```
+OR => could sort at entry point when parsing the recipes ?
+	-> definitely the right decision, supposing that the solver does not alter the shape of the matrices
+```
+

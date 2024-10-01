@@ -10,7 +10,7 @@ from models.google_sheet import GoogleSheet
 class Solver:
     def __init__(self):
         self.buildings, self.recipes = self.parse()
-        self.output, self.power, self.resources = self.read_instructions()
+        self.output, self.power, self.resources, self.used_recipes = self.read_instructions()
         self.A, self.A_def, self.B, self.B_def, self.X = self.solve()
 
     def parse(self):
@@ -57,8 +57,10 @@ class Solver:
         resources = {}
         power = set()
         output = {}
+        used_recipes = {}
 
         def register_recipe(recipe):
+            used_recipes[recipe.key] = recipe
             if recipe.building.power > 0:
                 power.add(recipe.key)
             for resource in set().union(recipe.resources["+"].keys(), recipe.resources["-"].keys()):
@@ -84,30 +86,79 @@ class Solver:
             csv_reader = csv.DictReader(csv_file)
             for row in csv_reader:
                 cmd[row["command"]](row["argument"])
-        if not len(resources):
+        if len(resources) == 0:
             for recipe in self.recipes.values():
                 register_recipe(recipe)
 
-        return output, power, resources
+        return output, power, resources, used_recipes
+
+    def compute_sequences(self):
+        observed = set()  # prevent cycles
+        batch = set()  # searching for recipes using these resources
+        resources = {}  # sequence for each resource name
+        recipes = {}  # sequence for each recipe name
+        unproduced = set()  # every un-produced resource
+        for resource, data in self.resources.items():
+            resources[resource] = 1  # default sequence
+            if len(data["+"]) == 0:
+                unproduced.add(resource)
+        for recipe, data in self.used_recipes.items():
+            recipes[recipe] = 1  # default sequence
+            if len(data.resources["-"]) == 0:
+                batch = batch.union(data.resources["+"])
+        batch = batch.union(unproduced)
+        sequence = 2
+        while len(batch) > 0:
+            observed = observed.union(batch)
+            new_batch = set()
+            for recipe, data in self.used_recipes.items():
+                match = False
+                for ingredient in data.resources["-"]:
+                    if ingredient in batch:
+                        match = True
+                        break
+                if match:
+                    recipes[recipe] = sequence
+                    for ingredient in data.resources["+"]:
+                        resources[ingredient] = sequence
+                        if ingredient not in observed:
+                            new_batch.add(ingredient)
+            sequence += 1
+            batch = new_batch
+        def order_by_sequence(sequence_map):
+            ordered = list(sequence_map.keys())
+            def key(val):
+                # reverse sequence order > alphabetical order
+                return (-sequence_map[val], val)
+            ordered.sort(key=key)
+            return ordered
+        return order_by_sequence(recipes), order_by_sequence(resources)
 
     def compute_matrices(self):
+        ordered_recipes, ordered_resources = self.compute_sequences()
         A = []
         A_def = OrderedSet()
         B = []
         B_def = OrderedSet()
+        allowedRecipes = set()
+        # filter used recipes
         for resource, data in self.resources.items():
             if resource not in self.output and not (len(data["+"]) and len(data["-"])):
                 continue
             for recipe in set().union(data["+"], data["-"]):
-                A_def.add(recipe)
-        for resource, data in self.resources.items():
+                allowedRecipes.add(recipe)
+        for recipe in ordered_recipes:
+            if recipe in allowedRecipes:
+                A_def.add(recipe)  # add recipe definition in sequence order
+        for resource in ordered_resources:
+            data = self.resources[resource]
             if resource not in self.output and not (len(data["+"]) and len(data['-'])):
                 continue
             elif resource in self.output:
                 B.append(self.output[resource]) # [self.output[resource]]
             else:
                 B.append(0) # [0]
-            B_def.add(resource)
+            B_def.add(resource)  # add resource in sequence order
             vector = [0] * len(A_def)
             for sign in ['+', '-']:
                 for recipe in data[sign]:
