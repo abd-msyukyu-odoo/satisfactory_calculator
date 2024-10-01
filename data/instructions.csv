@@ -1,0 +1,43 @@
+command,argument
+out,automated wiring#1
+out,smart plating#10
+out,versatile framework#10
+out,motor#10
+out,stator#10
+out,modular frame#10
+out,reinforced iron plate#20
+out,encased industrial beam#20
+out,steel pipe#20
+out,rotor#20
+out,iron plate#30
+out,iron rod#30
+out,copper sheet#40
+out,wire#60
+out,concrete#60
+out,steel beam#60
+out,screw#60
+r,automated wiring
+r,versatile framework
+r,smart plating
+r,encased industrial beam
+r,steel cast plate
+r,steel rod
+r,steeled frame
+r,stitched iron plate
+r,motor
+r,steel screw
+r,copper rotor
+r,stator
+r,cable
+r,iron wire
+r,copper sheet
+r,copper alloy ingot
+r,steel pipe
+r,steel beam
+r,iron alloy ingot
+r,solid steel ingot
+r,concrete
+r,coal
+r,copper ore
+r,iron ore
+r,limestone

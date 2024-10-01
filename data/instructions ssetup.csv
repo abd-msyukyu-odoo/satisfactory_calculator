@@ -1,0 +1,94 @@
+command,argument
+out,iron plate#120
+out,cable#30
+out,wire#30
+out,concrete#240
+out,iron rod#30
+out,copper sheet#120
+out,steel beam#120
+out,steel pipe#120
+out,modular frame#15
+out,reinforced iron plate#30
+out,rubber#30
+out,plastic#60
+out,empty canister#30
+out,packaged fuel#30
+out,heavy modular frame#5
+out,encased industrial beam#30
+out,motor#15
+out,rotor#15
+out,stator#5
+out,a.i. limiter#5
+out,computer#5
+out,circuit board#10
+out,crystal oscillator#10
+out,high-speed connector#5
+out,gas filter#1
+out,rifle cartridge#30
+out,nobelisk#1
+out,beacon#5
+out,quickwire#15
+out,silica#60
+out,quartz crystal#5
+out,turbofuel#450
+out,adaptive control unit#0.2
+out,modular engine#1
+out,versatile framework#5
+r,flexible framework
+r,modular engine
+r,adaptive control unit
+r,high-speed wiring
+r,plastic smart plating
+r,turbofuel
+r,compacted coal
+r,petroleum coke
+r,pure quartz crystal
+r,cheap silica
+r,fused quickwire
+r,steel screw
+r,pure caterium ingot
+r,copper alloy ingot
+r,polyester fabric
+r,fine black powder
+r,coke steel ingot
+r,beacon
+r,nobelisk
+r,rifle cartridge
+r,gas filter
+r,silicon high-speed connector
+r,insulated crystal oscillator
+r,silicon circuit board
+r,crystal computer
+r,a.i. limiter
+r,quickwire stator
+r,copper rotor
+r,rigour motor
+r,encased industrial pipe
+r,heavy encased frame
+r,unpackage fuel
+r,heavy oil residue
+r,residual rubber
+r,packaged water
+r,empty canister
+r,diluted packaged fuel
+r,recycled plastic
+r,recycled rubber
+r,adhered iron plate
+r,steeled frame
+r,steel coated plate
+r,insulated cable
+r,fused wire
+r,wet concrete
+r,steel rod
+r,steamed copper sheet
+r,steel beam
+r,steel pipe
+r,water
+r,iron ore
+r,copper ore
+r,coal
+r,caterium ore
+r,crude oil
+r,raw quartz
+r,limestone
+r,sulfur

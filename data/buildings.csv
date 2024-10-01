@@ -1,0 +1,22 @@
+key,power,w,l,h,vh
+alien power augmenter,500,28,28,28,28
+assembler,-15,10,15,11,10
+awesome sink,-30,16,13,24,24
+biomass burner,30,8,8,10,10
+blender,-75,18,16,15,15
+constructor,-4,8,10,8,7
+converter,-250,16,16,16,16
+foundry,-16,10,9,9,9
+quantum encoder,-1000,22,48,8,8
+manufacturer,-55,18,20,12,12
+miner,-45,6,14,18,18
+oil extractor,-40,8,14,20,20
+packager,-10,8,8,12,12
+particle accelerator,-1500,24,38,32,32
+refinery,-30,10,20,31,31
+smelter,-4,5,9,9,9
+water extractor,-20,20,19.5,26,17
+coal-powered generator,75,10,26,36,36
+fuel-powered generator,250,20,20,27,27
+nuclear power plant,2500,36,43,49,49
+resource well pressurizer,-150,20,20,23,23
