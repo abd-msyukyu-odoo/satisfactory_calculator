@@ -109,20 +109,26 @@ class Solver:
         batch = batch.union(unproduced)
         sequence = 2
         while len(batch) > 0:
-            observed = observed.union(batch)
             new_batch = set()
             for recipe, data in self.used_recipes.items():
                 match = False
                 for ingredient in data.resources["-"]:
                     if ingredient in batch:
                         match = True
-                        break
                 if match:
                     recipes[recipe] = sequence
                     for ingredient in data.resources["+"]:
                         resources[ingredient] = sequence
-                        if ingredient not in observed:
-                            new_batch.add(ingredient)
+                        new_batch.add(ingredient)  # TODO this is vulnerable to cycles (infinite loop)
+                        # for each recipe, register a recipe sequence, each resource in a batch should have a
+                        # set of sequences of recipes (they are coming from)
+                        # issue: we will now re-observe motor from rotors, but anything found from that will probably be already be found so nothing will come of it
+                        # but this means that recipes which are made from motor should all have their sequence updated too, so actually they SHOULD be re-evaluated
+                        # should actually keep a dict => recipes found from set of resources
+                        # if a recipe (the same) is found from another resource, the products of that recipe get a green flag (and so-on to reevaluate everything with a greater sequence)
+                        # meaning we should go over every found recipe, and remove the products of that recipe which was found because of something else
+                        # meaning that when we find recipes through that product afterwards, they will be under the impression that they found a new producer and it will propagate
+                        # this still protects against cycles, because 
             sequence += 1
             batch = new_batch
         def order_by_sequence(sequence_map):
