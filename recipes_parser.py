@@ -6,7 +6,6 @@ from ordered_set import OrderedSet
 from models.building import Building
 from models.recipe import Recipe
 from models.google_sheet import GoogleSheet
-from models.linked_list import LinkedList
 
 
 class Solver:
@@ -101,50 +100,40 @@ class Solver:
         return output, power, resources, used_recipes
 
     def compute_sequences(self):
-        # observed = set()  # prevent cycles
         batch = {}  # searching for recipes using these resources
         resources = {}  # sequence for each resource name
         recipes = {}  # sequence for each recipe name
         for resource, data in self.resources.items():
             resources[resource] = 1  # default sequence
             if len(data["+"]) == 0:
-                batch[resource] = set([LinkedList("")])  # empty recipe since that resource is not produced
+                batch[resource] = set()  # empty recipe set since that resource is not produced in these instructions
         for recipe, data in self.used_recipes.items():
             recipes[recipe] = 1  # default sequence
             if len(data.resources["-"]) == 0:
                 for resource in data.resources["+"]:
                     batch.setdefault(resource, set())
-                    batch[resource].add(LinkedList(recipe))
+                    batch[resource].add(recipe)  # recipe was used because no ingredient were required
         sequence = 2
         while len(batch) > 0:
             new_batch = {}
             for recipe, data in self.used_recipes.items():
-                # multiple ingredients of the same recipe can have different linked
-                # lists and they should all be considered for all recipe products
-                recipe_linked_lists = set()
+                # multiple ingredients of the same recipe can link to it at the same step
+                recipe_links = set()
                 for ingredient in data.resources["-"]:
                     if ingredient in batch.keys():
-                        for linked_list in batch[ingredient]:
-                            copy = linked_list.copy()
-                            if copy.append(recipe):
-                                # TODO what if a recipe can be added because of one ingredient but not the other ?
-                                # we will still continue with the correct path, but the other path will be forgotten
-                                # then, there is a possibility that the recipe is added again because of the other ingredient?
-                                # => no because there would be a cycle => actually I don't need linked lists at all lol
-                                # => I just need to check if a recipe was added because of the same ingredient a second time
-                                # => this means that all linked lists can be replaced with sets of aggregated recipe_name$$$ingredient_name
-
-                                # this is the cycle protection, if a recipe can not be added,
-                                # it means it was in a cycle because of that ingredient
-                                recipe_linked_lists.add(copy)
-                if len(recipe_linked_lists) > 0:
+                        key = f"{recipe}$$${ingredient}"
+                        # this is the cycle protection, if a recipe was already there because of the same
+                        # ingredient, it is not considered again.
+                        if key not in batch[ingredient]:
+                            # register all links related to this recipe
+                            recipe_links = recipe_links | batch[ingredient]
+                            recipe_links.add(key)
+                if len(recipe_links) > 0:
                     recipes[recipe] = sequence
                     for ingredient in data.resources["+"]:
                         resources[ingredient] = sequence
                         new_batch.setdefault(ingredient, set())
-                        # no need to make copies of linked lists for each product here, because
-                        # they won't ever be modified afterwards
-                        new_batch[ingredient] = new_batch[ingredient] | recipe_linked_lists
+                        new_batch[ingredient] = new_batch[ingredient] | recipe_links
             sequence += 1
             batch = new_batch
 
