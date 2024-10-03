@@ -42,3 +42,17 @@ OR => could sort at entry point when parsing the recipes ?
 	-> definitely the right decision, supposing that the solver does not alter the shape of the matrices
 ```
 
+```
+display[self.get_letter(self.s.A.shape[0] + 5)][ROW]
+=> access to column right after the scaling
+building name
+
+next to multiplier and row, add dimensions
+below multiplier: base surface area
+next: scaled surface area
+next: height of the building
+```
+
+```
+next step: 
+```

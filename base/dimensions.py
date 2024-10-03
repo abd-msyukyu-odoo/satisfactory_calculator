@@ -1,8 +1,8 @@
 
 
 class Dimensions:
-	def __init__(self, w, l, h, vh):
-		self.w = w
-		self.l = l
-		self.h = h
-		self.vh = vh
+    def __init__(self, width, length, height, visual_height):
+        self.width = width
+        self.length = length
+        self.height = height
+        self.visual_height = visual_height

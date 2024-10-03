@@ -10,7 +10,7 @@ class GoogleSheet:
         # => dimensions of the array are known
         # => create the scaler with formula (self dependent)
         # => create all columns with the display information of the scaler
-        self.w = self.s.A.shape[0] + 4  # header - power - [resources] - solution - scaling
+        self.w = self.s.A.shape[0] + 5  # header - power - [resources] - solution - scaling - building/height
         self.h = 2 * self.s.A.shape[1] + 3  # header - [recipes] - total - contribution - [recipes]
         self.display, self.multiplier = self.generate_display()
         self.write_variable_headers()
@@ -68,6 +68,22 @@ class GoogleSheet:
                 self.display[self.get_letter(2)][self.s.A.shape[1] + 1] += \
                     "+$" + self.get_letter(2) + "$" + str(self.s.A.shape[1] + 4 + j)
         self.display[self.get_letter(2)][self.s.A.shape[1] + 2] += ")"
+        # building part
+        for j in range(self.s.A.shape[1]):
+            recipe = self.s.recipes[self.s.A_def[j]]
+            self.display[self.get_letter(self.s.A.shape[0] + 5)][j + 1] = recipe.building.key
+            # surface
+            self.display[self.get_letter(self.s.A.shape[0] + 3)][self.s.A.shape[1] + 3 + j] = \
+                "=" + str(recipe.building.dimensions.width * recipe.building.dimensions.length) \
+                + "*" \
+                + "ROUNDUP($" + self.get_letter(self.s.A.shape[0] + 3) + "$" + str(j + 2) + ")"
+            # scaled surface
+            self.display[self.get_letter(self.s.A.shape[0] + 4)][self.s.A.shape[1] + 3 + j] = \
+                "=" + "$" + self.multiplier[0] + "$" + str(self.multiplier[1]) \
+                + "*" + str(recipe.building.dimensions.width * recipe.building.dimensions.length) \
+                + "*" + "ROUNDUP($" + self.get_letter(self.s.A.shape[0] + 3) + "$" + str(j + 2) + ")"
+            self.display[self.get_letter(self.s.A.shape[0] + 5)][self.s.A.shape[1] + 3 + j] = \
+                recipe.building.dimensions.height
 
     def generate_data_scaler(self):
         solution = OrderedDict()
@@ -93,8 +109,10 @@ class GoogleSheet:
         display["A"][self.s.A.shape[1] + 2] = "contribution"
         display[self.get_letter(self.s.A.shape[0] + 3)][0] = "solution"
         display[self.get_letter(self.s.A.shape[0] + 4)][0] = "scaling"
+        display[self.get_letter(self.s.A.shape[0] + 5)][0] = "buildings"
         display[self.get_letter(self.s.A.shape[0] + 3)][self.s.A.shape[1] + 1] = "multiplier"
         display[self.get_letter(self.s.A.shape[0] + 4)][self.s.A.shape[1] + 1] = "=1"
+        display[self.get_letter(self.s.A.shape[0] + 5)][self.s.A.shape[1] + 1] = "height"
         multiplier = [self.get_letter(self.s.A.shape[0] + 4), self.s.A.shape[1] + 2]
         return display, multiplier
 
