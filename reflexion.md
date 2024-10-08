@@ -120,3 +120,4 @@ pyramide: combien d'etages, quelle largeur par etage
 | versatile framework | assembler | 2 (9) (31 blocks) |
 
 height: 6x6 36 (36x4 -> 144x88x88)
+test phone
