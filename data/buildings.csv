@@ -1,22 +1,22 @@
-key,power,w,l,h,vh
-alien power augmenter,500,28,28,28,28
-assembler,-15,10,15,11,10
-awesome sink,-30,16,13,24,24
-biomass burner,30,8,8,10,10
-blender,-75,18,16,15,15
-constructor,-4,8,10,8,7
-converter,-250,16,16,16,16
-foundry,-16,10,9,9,9
-quantum encoder,-1000,22,48,8,8
-manufacturer,-55,18,20,12,12
-miner,-45,6,14,18,18
-oil extractor,-40,8,14,20,20
-packager,-10,8,8,12,12
-particle accelerator,-1500,24,38,32,32
-refinery,-30,10,20,31,31
-smelter,-4,5,9,9,9
-water extractor,-20,20,19.5,26,17
-coal-powered generator,75,10,26,36,36
-fuel-powered generator,250,20,20,27,27
-nuclear power plant,2500,36,43,49,49
-resource well pressurizer,-150,20,20,23,23
+key,power,w,l,h,vh,vl
+alien power augmenter,500,28,28,28,0,0
+assembler,-15,10,15,11,11,19
+awesome sink,-30,16,13,24,0,0
+biomass burner,30,8,8,10,0,0
+blender,-75,18,16,15,0,0
+constructor,-4,8,10,8,9,14
+converter,-250,16,16,16,0,0
+foundry,-16,10,9,9,9,13
+quantum encoder,-1000,22,48,8,0,0
+manufacturer,-55,18,20,12,0,0
+miner,-45,6,14,18,0,0
+oil extractor,-40,8,14,20,0,0
+packager,-10,8,8,12,0,0
+particle accelerator,-1500,24,38,32,0,0
+refinery,-30,10,20,31,0,0
+smelter,-4,5,9,9,9,13
+water extractor,-20,20,19.5,26,0,0
+coal-powered generator,75,10,26,36,0,0
+fuel-powered generator,250,20,20,27,0,0
+nuclear power plant,2500,36,43,49,0,0
+resource well pressurizer,-150,20,20,23,0,0

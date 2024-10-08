@@ -74,16 +74,18 @@ class GoogleSheet:
             self.display[self.get_letter(self.s.A.shape[0] + 5)][j + 1] = recipe.building.key
             # surface
             self.display[self.get_letter(self.s.A.shape[0] + 3)][self.s.A.shape[1] + 3 + j] = \
-                "=" + str(recipe.building.dimensions.width * recipe.building.dimensions.length) \
-                + "*" \
-                + "ROUNDUP($" + self.get_letter(self.s.A.shape[0] + 3) + "$" + str(j + 2) + ")"
+                "=ROUNDUP(" + str(recipe.building.dimensions.width * recipe.building.dimensions.visual_length) \
+                + "*ROUNDUP(" \
+                + "$" + self.get_letter(self.s.A.shape[0] + 3) + str(j + 2) + \
+                ")/64)"
             # scaled surface
             self.display[self.get_letter(self.s.A.shape[0] + 4)][self.s.A.shape[1] + 3 + j] = \
-                "=" + "$" + self.multiplier[0] + "$" + str(self.multiplier[1]) \
-                + "*" + str(recipe.building.dimensions.width * recipe.building.dimensions.length) \
-                + "*" + "ROUNDUP($" + self.get_letter(self.s.A.shape[0] + 3) + "$" + str(j + 2) + ")"
+                "=ROUNDUP(" + "$" + self.multiplier[0] + "$" + str(self.multiplier[1]) \
+                + "*" + str(recipe.building.dimensions.width * recipe.building.dimensions.visual_length) \
+                + "*ROUNDUP(" + "$" + self.get_letter(self.s.A.shape[0] + 3) + str(j + 2) \
+                + ")/64)"
             self.display[self.get_letter(self.s.A.shape[0] + 5)][self.s.A.shape[1] + 3 + j] = \
-                recipe.building.dimensions.height
+                "=ROUNDUP((" + str(recipe.building.dimensions.visual_height) + "+12)/4)"
 
     def generate_data_scaler(self):
         solution = OrderedDict()
@@ -112,7 +114,9 @@ class GoogleSheet:
         display[self.get_letter(self.s.A.shape[0] + 5)][0] = "buildings"
         display[self.get_letter(self.s.A.shape[0] + 3)][self.s.A.shape[1] + 1] = "multiplier"
         display[self.get_letter(self.s.A.shape[0] + 4)][self.s.A.shape[1] + 1] = "=1"
-        display[self.get_letter(self.s.A.shape[0] + 5)][self.s.A.shape[1] + 1] = "height"
+        display[self.get_letter(self.s.A.shape[0] + 3)][self.s.A.shape[1] + 2] = "area (blocks)"
+        display[self.get_letter(self.s.A.shape[0] + 4)][self.s.A.shape[1] + 2] = "area (scaled)"
+        display[self.get_letter(self.s.A.shape[0] + 5)][self.s.A.shape[1] + 2] = "height (blocks)"
         multiplier = [self.get_letter(self.s.A.shape[0] + 4), self.s.A.shape[1] + 2]
         return display, multiplier
 
