@@ -100,7 +100,7 @@ pyramide: combien d'etages, quelle largeur par etage
 | stator              | assembler   | 7                  |
 | steel screw         | constructor | 4                  |
 | stitched iron plate | assembler   | 8                  |
-| cable               | constructor | 1 (20) (43 blocks) |
+| cable               | constructor | 2 (21) (47 blocks) |
 
 #### floor 5 (9x9 81)
 
