@@ -1,25 +1,58 @@
 command,argument
-out,automated wiring#1
-out,smart plating#10
-out,versatile framework#10
-out,motor#10
-out,stator#10
-out,modular frame#10
-out,reinforced iron plate#20
-out,encased industrial beam#20
-out,steel pipe#20
-out,rotor#20
-out,iron plate#30
-out,iron rod#30
-out,cable#30
-out,copper sheet#40
-out,wire#60
-out,concrete#60
-out,steel beam#60
-out,screw#60
+out,adaptive control unit#1
+out,modular engine#5
+out,sam fluctuator#6.25
+out,computer#10
+out,crystal oscillator#10
+out,ai limiter#10
+out,heavy modular frame#10
+out,empty canister#10
+out,rifle ammo#10
+out,packaged fuel#10
+out,packaged turbofuel#10
+out,circuit board#20
+out,rubber#20
+out,plastic#20
+out,quickwire#30
+r,crystal computer
+r,insulated crystal oscillator
+r,silicon circuit board
+r,fused quickwire
+r,plastic ai limiter
+r,sam fluctuator
+r,heavy encased frame
+r,coated iron canister
+r,rifle ammo
+r,recycled plastic
+r,recycled rubber
+r,residual rubber
+r,diluted packaged fuel
+r,packaged turbofuel
+r,modular engine
+r,adaptive control unit
+r,plastic smart plating
+r,turbofuel
+r,packaged water
+r,water
+r,raw quartz
+r,sam
+r,sulfur
+r,compacted coal
+r,crude oil
+r,unpackage fuel
+r,heavy oil residue
+r,petroleum coke
+r,smokeless powder
+r,nobelisk
+r,sulfur
+r,caterium ore
+r,fine black powder
+r,cheap silica
+r,pure quartz crystal
+r,reanimated sam
+r,tempered caterium ingot
 r,automated wiring
 r,versatile framework
-r,smart plating
 r,encased industrial beam
 r,steel cast plate
 r,steel rod

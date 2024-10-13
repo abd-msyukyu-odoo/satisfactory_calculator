@@ -54,70 +54,48 @@ next: height of the building
 ```
 
 ```
-next step: 
-```
-
-
-
-
-
-```
 pyramide: combien d'etages, quelle largeur par etage
 
 => tour centrale de circulation de ressources (+ escalier autour)
 => ressources de base puis on monte ?
 ```
 
-#### floor 1 (11x11 121)
+### next
 
-| recipe             | building    | amount               |
-| ------------------ | ----------- | -------------------- |
-| solid steel ingot  | foundry     | 19                   |
-| concrete           | constructor | 12                   |
-| copper alloy ingot | foundry     | 3                    |
-| iron alloy ingot   | foundry     | 16 (50) (102 blocks) |
+> caterium ingot (tempered caterium ingot)
+> caterium ore
+> reanimated sam
+> quartz crystal (pure quartz crystal)
+> silica (cheap silica)
+> black powder (fine black powder)
+> nobelisk 
+> smokeless powder
+> heavy oil residue ()
+> petroleum coke
+> polymer resin (heavy oil residue)
+> fuel (unpackage fuel)
+> crude oil
+> compacted coal ()
+> sulfur
+> sam
+> raw quartz
+> water
+> packaged water
+> turbofuel ()
+> plastic smart plating (change recipe)
 
-#### floor 2 (9x9 81)
-
-| recipe           | building    | amount              |
-| ---------------- | ----------- | ------------------- |
-| steel beam       | constructor | 14                  |
-| steel cast plate | foundry     | 4                   |
-| steel rod        | constructor | 1                   |
-| copper sheet     | constructor | 14 (33) (45 blocks) |
-
-#### floor 3 (9x9 81)
-
-| recipe     | building    | amount             |
-| ---------- | ----------- | ------------------ |
-| iron wire  | constructor | 28                 |
-| steel pipe | constructor | 9 (37) (47 blocks) |
-
-#### floor 4 (9x9 81)
-
-| recipe              | building    | amount             |
-| ------------------- | ----------- | ------------------ |
-| stator              | assembler   | 7                  |
-| steel screw         | constructor | 4                  |
-| stitched iron plate | assembler   | 8                  |
-| cable               | constructor | 2 (21) (47 blocks) |
-
-#### floor 5 (9x9 81)
-
-| recipe                  | building  | amount             |
-| ----------------------- | --------- | ------------------ |
-| automated wiring        | assembler | 1                  |
-| copper rotor            | assembler | 5                  |
-| steeled frame           | assembler | 5                  |
-| encased industrial beam | assembler | 4 (15) (40 blocks) |
-
-#### floor 6 (7x7 49)
-
-| recipe              | building  | amount            |
-| ------------------- | --------- | ----------------- |
-| motor               | assembler | 2                 |
-| smart plating       | assembler | 5                 |
-| versatile framework | assembler | 2 (9) (31 blocks) |
-
-height: 6x6 36 (36x4 -> 144x88x88)
-test phone
+computer (crystal computer) (10)
+crystal oscillator (Insulated Crystal Oscillator) (10)
+circuit board (silicon circuit board > caterium circuit board) (20)
+quickwire (fused quickwire) (30)
+ai limiter (plastic ai limiter) (10)
+sam fluctuator (6.25 (node 150))
+heavy modular frame (heavy encased frame) (10)
+empty canister (coated iron canister) (10)
+rifle ammo (10)
+rubber (residual rubber + recycled rubber) (20)
+plastic (recycled plastic) (20)
+packaged fuel (diluted packaged fuel) (10)
+packaged turbofuel (10)
+modular engine (5)
+adaptive control unit (1)
