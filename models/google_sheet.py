@@ -74,14 +74,14 @@ class GoogleSheet:
             self.display[self.get_letter(self.s.A.shape[0] + 5)][j + 1] = recipe.building.key
             # surface
             self.display[self.get_letter(self.s.A.shape[0] + 3)][self.s.A.shape[1] + 3 + j] = \
-                "=ROUNDUP(" + str(recipe.building.dimensions.width * recipe.building.dimensions.visual_length) \
+                "=ROUNDUP(" + str(recipe.building.dimensions.visual_width * recipe.building.dimensions.visual_length) \
                 + "*ROUNDUP(" \
                 + "$" + self.get_letter(self.s.A.shape[0] + 3) + str(j + 2) + \
                 ")/64)"
             # scaled surface
             self.display[self.get_letter(self.s.A.shape[0] + 4)][self.s.A.shape[1] + 3 + j] = \
                 "=ROUNDUP(" + "$" + self.multiplier[0] + "$" + str(self.multiplier[1]) \
-                + "*" + str(recipe.building.dimensions.width * recipe.building.dimensions.visual_length) \
+                + "*" + str(recipe.building.dimensions.visual_width * recipe.building.dimensions.visual_length) \
                 + "*ROUNDUP(" + "$" + self.get_letter(self.s.A.shape[0] + 3) + str(j + 2) \
                 + ")/64)"
             self.display[self.get_letter(self.s.A.shape[0] + 5)][self.s.A.shape[1] + 3 + j] = \

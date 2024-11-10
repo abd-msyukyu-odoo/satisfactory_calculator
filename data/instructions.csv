@@ -1,77 +1,99 @@
 command,argument
-out,adaptive control unit#1
-out,modular engine#5
-out,sam fluctuator#6.25
-out,computer#10
-out,crystal oscillator#10
-out,ai limiter#10
-out,heavy modular frame#10
-out,empty canister#10
-out,rifle ammo#10
-out,packaged fuel#10
-out,packaged turbofuel#10
-out,circuit board#20
-out,rubber#20
-out,plastic#20
-out,quickwire#30
-r,crystal computer
-r,insulated crystal oscillator
-r,silicon circuit board
-r,fused quickwire
-r,plastic ai limiter
-r,sam fluctuator
-r,heavy encased frame
-r,coated iron canister
-r,rifle ammo
-r,recycled plastic
-r,recycled rubber
-r,residual rubber
-r,diluted packaged fuel
-r,packaged turbofuel
-r,modular engine
-r,adaptive control unit
-r,plastic smart plating
-r,turbofuel
-r,packaged water
-r,water
-r,raw quartz
-r,sam
-r,sulfur
-r,compacted coal
-r,crude oil
-r,unpackage fuel
-r,heavy oil residue
-r,petroleum coke
-r,smokeless powder
-r,nobelisk
-r,sulfur
-r,caterium ore
-r,fine black powder
-r,cheap silica
-r,pure quartz crystal
-r,reanimated sam
-r,tempered caterium ingot
-r,automated wiring
-r,versatile framework
-r,encased industrial beam
-r,steel cast plate
-r,steel rod
-r,steeled frame
-r,stitched iron plate
-r,motor
-r,steel screw
-r,copper rotor
-r,stator
-r,cable
-r,iron wire
-r,copper sheet
-r,copper alloy ingot
-r,steel pipe
-r,steel beam
+out,nuclear pasta#1
+out,iodine-infused filter#1
+out,gas filter#0.8
+out,portable miner#1
+out,thermal propulsion rocket#2.5
+out,magnetic field generator#5
+out,assembly director system#5
+out,supercomputer#5
+out,turbo motor#5
+out,cooling system#5
+out,radio control unit#5
+out,fused modular frame#5
+out,battery#10
+out,empty fluid tank#10
+out,packaged rocket fuel#15.8
+out,aluminum casing#20
+out,alclad aluminum sheet#53.45
+out,turbo rifle ammo#75
+r,automated miner
+r,rubber concrete
 r,iron alloy ingot
 r,solid steel ingot
-r,concrete
-r,coal
+r,coated iron plate
+r,cheap silica
+r,adhered iron plate
+r,fused wire
+r,quickwire stator
+r,steel rotor
+r,steel pipe
+r,steel beam
+r,flexible framework
+r,steeled frame
+r,encased industrial beam
+r,heavy encased frame
+r,plastic smart plating
+r,silicon circuit board
+r,electromagnetic connection rod
+r,silicon high-speed connector
+r,crystal computer
+r,rigor motor
+r,plastic ai limiter
+r,pure quartz crystal
+r,insulated crystal oscillator
+r,modular engine
+r,automated speed wiring
+r,adaptive control unit
+r,caterium ingot
+r,fused quickwire
+r,polyester fabric
+r,gas filter
+r,iodine-infused filter
+r,fine black powder
+r,smokeless powder
+r,steamed copper sheet
+r,rifle ammo
+r,turbofuel
+r,turbo rifle ammo (blender)
+r,packaged nitrogen gas
+r,nitric acid
+r,heat-fused frame
+r,pure aluminum ingot
+r,sloppy alumina
+r,nitro rocket fuel
+r,packaged rocket fuel
+r,empty fluid tank
+r,petroleum coke
+r,electrode aluminum scrap
+r,alclad aluminum sheet
+r,aluminum casing
+r,classic battery
+r,heat exchanger
+r,radio control system
+r,cooling device
+r,turbo pressure motor
+r,super-state computer
+r,nuclear pasta
+r,copper powder
+r,pressure conversion cube
+r,thermal propulsion rocket
+r,magnetic field generator
+r,assembly director system
+r,residual rubber
+r,recycled rubber
+r,recycled plastic
+r,heavy oil residue
+r,diluted fuel
+r,copper alloy ingot
 r,copper ore
 r,iron ore
+r,sulfur
+r,water
+r,crude oil
+r,coal
+r,nitrogen gas
+r,bauxite
+r,caterium ore
+r,raw quartz
 r,limestone

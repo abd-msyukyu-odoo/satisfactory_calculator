@@ -1,0 +1,97 @@
+command,argument
+out,nuclear pasta#1
+out,iodine-infused filter#1
+out,thermal propulsion rocket#2.5
+out,magnetic field generator#5
+out,assembly director system#5
+out,supercomputer#5
+out,turbo motor#5
+out,cooling system#5
+out,radio control unit#5
+out,fused modular frame#5
+out,battery#10
+out,packaged rocket fuel#10
+out,empty fluid tank#10
+out,aluminum casing#20
+out,alclad aluminum sheet#60
+out,turbo rifle ammo#75
+r,rubber concrete
+r,iron alloy ingot
+r,solid steel ingot
+r,coated iron plate
+r,cheap silica
+r,adhered iron plate
+r,fused wire
+r,quickwire stator
+r,steel rotor
+r,steel pipe
+r,steel beam
+r,flexible framework
+r,steeled frame
+r,encased industrial beam
+r,heavy encased frame
+r,plastic smart plating
+r,silicon circuit board
+r,electromagnetic connection rod
+r,silicon high-speed connector
+r,crystal computer
+r,rigor motor
+r,plastic ai limiter
+r,pure quartz crystal
+r,insulated crystal oscillator
+r,modular engine
+r,automated speed wiring
+r,adaptive control unit
+r,tempered caterium ingot
+r,fused quickwire
+r,polyester fabric
+r,gas filter
+r,iodine-infused filter
+r,fine black powder
+r,smokeless powder
+r,steamed copper sheet
+r,rifle ammo
+r,compacted coal
+r,turbofuel
+r,turbo rifle ammo (blender)
+r,packaged nitrogen gas
+r,nitric acid
+r,heat-fused frame
+r,aluminum ingot
+r,alumina solution
+r,nitro rocket fuel
+r,packaged rocket fuel
+r,empty fluid tank
+r,petroleum coke
+r,electrode aluminum scrap
+r,alclad aluminum sheet
+r,aluminum casing
+r,classic battery
+r,heat exchanger
+r,radio control system
+r,cooling device
+r,turbo pressure motor
+r,super-state computer
+r,nuclear pasta
+r,copper powder
+r,pressure conversion cube
+r,thermal propulsion rocket
+r,magnetic field generator
+r,assembly director system
+r,residual rubber
+r,recycled rubber
+r,recycled plastic
+r,heavy oil residue
+r,diluted fuel
+r,copper alloy ingot
+r,copper ore
+r,iron ore
+r,sulfur
+r,water
+r,crude oil
+r,coal
+r,nitrogen gas
+r,bauxite
+r,caterium ore
+r,raw quartz
+r,limestone

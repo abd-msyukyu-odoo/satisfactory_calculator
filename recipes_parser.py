@@ -10,6 +10,9 @@ from models.google_sheet import GoogleSheet
 
 class Solver:
     def __init__(self):
+        self.RED = "\033[31m"
+        self.GREEN = "\033[32m"
+        self.RESET = "\033[0m"
         self.buildings, self.recipes = self.parse()
         (
             self.output, self.power, self.resources, self.used_recipes
@@ -106,6 +109,7 @@ class Solver:
         for resource, data in self.resources.items():
             resources[resource] = 1  # default sequence
             if len(data["+"]) == 0:
+                print(f"missing {self.RED}{resource}{self.RESET} ?")
                 batch[resource] = set()  # empty recipe set since that resource is not produced in these instructions
         for recipe, data in self.used_recipes.items():
             recipes[recipe] = 1  # default sequence

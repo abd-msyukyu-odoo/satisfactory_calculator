@@ -1,0 +1,79 @@
+command,argument
+out,adaptive control unit#1
+out,gas filter#0.2
+out,modular engine#5
+out,sam fluctuator#6.25
+out,computer#10
+out,high-speed connector#10
+out,crystal oscillator#10
+out,ai limiter#10
+out,heavy modular frame#10
+out,empty canister#10
+out,nobelisk#1
+out,rifle ammo#10
+out,packaged fuel#10
+out,packaged turbofuel#10
+out,circuit board#20
+out,rubber#20
+out,plastic#20
+out,quickwire#30
+out,concrete#175.53571426
+r,silicon high-speed connector
+r,crystal computer
+r,silicon circuit board
+r,insulated crystal oscillator
+r,pure quartz crystal
+r,water
+r,raw quartz
+r,plastic ai limiter
+r,fused quickwire
+r,steamed copper sheet
+r,cheap silica
+r,limestone
+r,copper alloy ingot
+r,copper ore
+r,iron ore
+r,tempered caterium ingot
+r,caterium ore
+r,residual rubber
+r,heavy oil residue
+r,crude oil
+r,petroleum coke
+r,recycled plastic
+r,recycled rubber
+r,diluted packaged fuel
+r,unpackage fuel
+r,packaged water
+r,coated iron canister
+r,steel cast plate
+r,iron alloy ingot
+r,solid steel ingot
+r,coal
+r,sam fluctuator
+r,reanimated sam
+r,sam
+r,iron wire
+r,steel pipe
+r,rifle ammo
+r,smokeless powder
+r,sulfur
+r,compacted coal
+r,fine black powder
+r,nobelisk
+r,packaged turbofuel
+r,turbofuel
+r,heavy encased frame
+r,wet concrete
+r,encased industrial beam
+r,steel beam
+r,steeled frame
+r,stitched iron plate
+r,modular engine
+r,plastic smart plating
+r,steel rotor
+r,rigor motor
+r,stator
+r,adaptive control unit
+r,automated speed wiring
+r,polyester fabric
+r,gas filter

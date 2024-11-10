@@ -293,7 +293,7 @@ turbo heavy fuel,refinery,8,turbofuel,4,,,heavy oil residue,-5,compacted coal,-4
 turbo motor,manufacturer,32,turbo motor,1,,,cooling system,-4,radio control unit,-2,motor,-4,rubber,-24,
 turbo pressure motor,manufacturer,32,turbo motor,2,,,motor,-4,pressure conversion cube,-1,packaged nitrogen gas,-24,stator,-8,
 turbo rifle ammo,manufacturer,12,turbo rifle ammo,50,,,rifle ammo,-25,aluminum casing,-3,packaged turbofuel,-3,,,
-turbo rifle ammo,blender,12,turbo rifle ammo,50,,,rifle ammo,-25,aluminum casing,-3,turbofuel,-3,,,
+turbo rifle ammo (blender),blender,12,turbo rifle ammo,50,,,rifle ammo,-25,aluminum casing,-3,turbofuel,-3,,,
 turbofuel,refinery,16,turbofuel,5,,,fuel,-6,compacted coal,-4,,,,,
 turbofuel power,fuel-powered generator,8,,,,,turbofuel,-1,,,,,,,
 unpackage alumina solution,packager,1,alumina solution,2,empty canister,2,packaged alumina solution,-2,,,,,,,

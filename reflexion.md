@@ -83,6 +83,7 @@ pyramide: combien d'etages, quelle largeur par etage
 > packaged water
 > turbofuel ()
 > plastic smart plating (change recipe)
+> copper sheet (Steamed Copper Sheet)
 
 computer (crystal computer) (10)
 crystal oscillator (Insulated Crystal Oscillator) (10)
@@ -99,3 +100,386 @@ packaged fuel (diluted packaged fuel) (10)
 packaged turbofuel (10)
 modular engine (5)
 adaptive control unit (1)
+
+```
+energie (4600 watts min)
+possibility 5 power augmenters (100 computers = 12 tickets), 51 somersloop -> feasible
+
+-> find all recipes:
+OK - crystal computer
+OK - fine black powder
+OK - silicon circuit board
+OK - insulated crystal oscillator
+OK - pure quartz crystal
+OK - plastic ai limiter
+OK - tempered caterium ingot
+residual rubber
+OK - heavy oil residue
+OK - recycled plastic
+OK - recycled rubber
+OK - diluted packaged fuel
+OK - coated iron canister
+OK - compacted coal
+OK - turbofuel
+OK - heavy encased frame
+OK - wet concrete
+OK - plastic smart plating
+OK - steel rotor
+OK - rigor motor
+OK - silicon high-speed connector
+polyester fabric (MAM)
+
+-> find many energy boosters for overclock
+
+-> create new blueprints (bigger + faster + newer)
+
+-> fill geysers with energy thingy => no need for other energy thingy, or need less of them
+```
+
+#### simplified solver
+
+```
+- define the "cost of energy" in resources by hand (guesstimate)
+- now, each recipe is entirely defined by resources
+- also, each resource has its own cost in other resources too, based on energy, even water
+- replace all water by its cost in other resources using energy (consider pumps as negligible, or add an energy constant per quantity to represent pumps), since it is illimited
+=> now we have every recipe in terms of resources with no water
+=> now, replace resources cost for every resources by the % of that resource compared to the world availability
+=> now every recipe has a cost in % of other resources without taking water into account
+
+=> take the energy solution using the new recipe scaling in %, and evaluate which resource us over-used and which resource is under-used
+=> adapt/change the ratios of recipes through alternatives to approximately balance the solution
+=> redo a full pass to re-evaluate the new %value for each resource in the energy solution
+=> repeat process until solutions are balanced for energy (this process has a risk of artificially augmenting the amount of resources needed to do something for the sake of balancing, so a notion of overall cost should be maintained and minimised to avoid this issue)
+	=> overall cost can be the hightest resource % (% of the most used resource) => maybe except uranium which must be used at 100% for energy? => yes (almost true except dark matter residue, but that can be obtained with other processes so can be omitted for simplicity)
+
+=> energy balancing
+	- replace water by its resource energy cost
+	- use 100% of uranium
+	- minimise max % usage of any other resource
+	=> solution is the most balanced way to get energy.
+	
+=> there is no real concept of "resource cost", only "recipe cost", as almost every resource can be obtained multiple way
+
+=> a great way to proceed and get somewhat of a "resource cost" is to take one (or multiple) end game resources and minimize max % LEFT usage of any other resource after max energy level is guaranteed (through uranium)
+```
+
+### bom
+
+```
+water (9 extrators, 2 pipes)
+crude oil (1 impure, 1 pipe)
+sulfur (1 miner, 1 lane)
+sam (1 miner, 1 lane)
+raw quartz(2 norm miners, 1 lane)
+limestone (3 norm miners, 2 lanes)
+iron ore (3 norm miners, 2 lanes)
+copper ore (2 norm miners, 1 lane)
+coal (2 norm miners + 1 impure, 2 lanes)
+caterium (1 pure miner, 1 lane)
+
+```
+
+### floor 0
+
+```
+copper alloy ingot (foundry 5)
+compacted coal (assembler 1)
+cheap silica (assembler 5)
+fine black powsder (assembler 1)
+tempered caterium ingot (foundry 3)
+silicon circuit board (assembler 5)
+rifle ammo (assembler 1)
+fused quickwire (assembler 9)
+silicon high-speed connector (manufacturer 4)
+plastic ai limiter (assembler 4)
+insulated crystal oscillator (manufacturer 10)
+crystal computer (assembler 4)
+
+-1 iron ore (1 remain)
+-split copper ore (1 remain)
+-1 sulfur (0 remain)
+-0 coal (2 remain, split for interior)
+-1 raw quartz (0 remain, split for exterior)
+-2 limestone (0 remain, split for exterior, check master belt position)
++1-1 compacted coal (0 remain, split for exterior)
++1-1 copper ingot (0 remain, split for exterior)
++1-1 silica (0 remain)
++1 black powder (1 remain, split for interior)
+-1 caterium ore (0 remain)
+-1 petroleum coke (0 remain)
++1-1 caterium ingot (0 remain)
+-0 copper sheet (1 remain, split for interior)
++1 circuit board (1 remain, split for interior, split for output)
+-1 smokeless powder (0 remain)
++1 rifle ammo (1 remain, output)
++2-2 quickwire (0 remain, split for output)
++1 high speed connector (1 remain, split for interior, split for output)
+-0 plastic (1 remain, split for interior, split for output)
++1-1 ai limiter (0 remain, split for output)
+-1 quartz crystal (0 remain)
+-0 rubber (1 remain, split for interior, split for output)
++1 crystal oscillator (1 remain, split for interior, split for output)
+--
+unused exterior
+packaged turbofuel (1 remain, output)
+packaged fuel (1 remain, output)
+-0 concrete (1 remain, split for interior, split for output)
+canister (2 remain, output, input (exterior))
+fabric (1 remain, interior)
+
+6 raw resources
+canister 2 belts
+fabric 1 belt
+black powder 1 belt
+copper sheet 1 belt
+crystal oscillator 1 belt
+circuit board 1 belt
+high speed circuit board 1 belt
+plastic 1 belt
+rubber 1 belt
+concrete 1 belt
+```
+
+### floor1
+
+```
+iron alloy ingot (2 belts, - 2 iron ore (0 remain), - 1 copper ore (0 remain)) (12 foundry)
+solid steel ingot (2 belts, -1.5 iron ingot (1 remain), -1.5 coal (1 remain)) (16 foundry)
+gas filter (1 output, -0.5 coal (0 remain), -1 fabric (0 remain)) (1 manufacturer)
+iron plate (1 belt, -0.5 iron ingot (1 remain), -0.5 steel ingot (2 remain)) (3 foundry)
+coated iron canister (1 belt, -1 copper sheet (0 remain), -0.5 iron plate (1 remain)) (1 assembler)
+stitched iron plate (1 belt, -0.5 iron plate (0 remain), -0.5 wire, (1 remain)) (5 assembler)
+iron wire (1 belt, -0.5 iron ingot (0 remain)) (17 constructor)
+steel pipe (1 belt, -1 steel ingot (1 remain)) (15 constructor)
+nobelisk (1 output, -1 black powder (0 remain), 0.5 steel pipe (1 remain)) (1 assembler)
+
+estimated area (133), 13x13 = 169 (79% capacity, 36 empty blocks)
+estimated belt change -6+1 (-5) => 12 
+```
+
+```
+floor2
+178 estimated area left => 11x11 121 * 0.8 = 96
+floor3
+					  => 9x9 81 *0.7 = 56
+floor4
+					  => 7x7 63 *0.7 = 44
+```
+
+```
+error for steel ingot => secondary belt should have 440 not 470 => target is 10, not 50
+```
+
+### floor2
+
+```
+reanimated sam (1 belt, -1 sam (0 remain))) (2 constructor)
+steel beam (1 belt, -1 steel ingot (0 remain)) (8 constructor)
+encased industrial beam (1 belt, -0.5 concrete (1 remain), -1 steel beam (0 remain)) (7 assembler)
+steeled frame (1 belt, -0.5 steel pipe (1 remain), -0.5 reinforced iron plate (1 remain)) (10 assembler)
+heavy encased frame (1 belt, -0.5 concrete (0 remain), -0.5 steel pipe (1 remain), -1 encased industrial beam (0 remain), -1 modular frame (0 remain)) (4 manufacturer)
+current size: 84 (ok)
+
+```
+
+### floor3
+
+```
+sam fluctuator (1 belt, -1 reanimated sam (0 remain), -0.5 steel pipe (1 remain), -0.5 wire (1 remain)) (1 manufacturer)
+stator (1 belt, -0.5 wire (1 remain), -0.5 steel pipe (1 remain)) (2 assembler)
+rotor (1 belt, -0.5 wire (1 remain), -0.5 steel pipe (1 remain)) (2 assembler)
+automated speed wiring (1 belt, -1 high speed connector (0 remain), -0.5 stator (1 remain), 0.5 wire (0 remain)) (1 manufacturer)
+rigor motor (1 belt, -0.5 stator (0 remain), -0.5 rotor (1 remain), -0.5 crystal oscillator (1 remain)) (2 manufacturer)
+plastic smart plating (1 belt, -0.5 plastic (0 remain), -0.5 reinforced iron plate (1 remain), -0.5 rotor (0 remain)) (2 manufacturer)
+crystal computer (1 belt, -0.5 circuit board (1 remain), -0.5 crystal oscillator (0 remain)) (4 assembler)
+
+current size: 56 (ok)
+```
+
+### floor4
+
+```
+modular engine
+adaptive control unit
+
+current size: 41 (ok)
+
+
+```
+
+### signals definitions
+
+```
+resource reserve (body) INPUT + OUTPUT (line)
+
+signal reserve (body) main resource for signal (need special handling for overflow) | signal resource (can be partially filled) (line)
+
+alternator (body) filler resource (line)
+
+conveyor lifts INPUT + OUTPUT (body) => line is irrelevant
+
+
+combinations:
+
+resource reserve + resource reserve
+resource reserve + resource reserve
+
+signal reserve + main (= resource reserve)
+signal reserve + signal (= signal reserve)
+
+alternator + signal filler (= signal reserve)
+alternator + main (=resource reserve)
+
+INPUT
+OUTPUT
+
+colors:
+resource reserve => BLACK
+signal reserve => WHITE
+alternator => BLUE
+input => RED
+output => GREEN
+```
+
+```
+issues:
+minimise bauxite =>
+```
+
+```
+train T variants:
+TLBR
+TRBL
+
+	TOP-FORWARD BOTTOM-BACKWARD
+	TOP-BACKWARD BOTTOM-FORWARD
+	
+BUT => no matter the case, forward is always on the right and backward is always on the left
+	=> then an adaptator to right-TOP ou right-BOTTOM can be separate
+	
+	
+up to 4 belts IN/OUT per station of 2 wagons
+=> ideally would have a merge-splitter into 4 
+
+2 belts into 1 smoother = always 1 full + 1 overflow without loss
+split the full belt in 2 and the overflow in 2 and merge => 2 equal belts guaranteed no matter if there was 1 or 2 inputs
+
+since there will never be more than 1 belt into a wagon => 2 input belts can be inserted in the mechanism and equally contribute
+to both wagons
+
+smoother => split both ways => station (merge happens in the container)
+
+
+input (train incoming) => belts are already balanced, only have to merge outputs of container, but I don't know if they have prior
+```
+
+```
+quartz caterium copper sulfur limestone (5) => slow lane
+
+copper > limestone > quartz > caterium > sulfur
+
+nitrogen gas > iron > bauxite > coal
+```
+
+```
+can one station support 3 lanes at 2110.4005
+
+```
+
+```
+resources to move below: TODO: define how many belts
+nitrogen gas (2)
+heavy modular frame (1)
+heat sink (1)
+motor (1)
+aluminum casing (1)
+copper ingot (1)
+iron plate (1)
+sulfur (1)
+coal (1)
+raw quartz (1)
+bauxite (2)
+BONUS limestone (1) (overflow from 1 belt)
+SUM DOWN: 14
+```
+
+```
+resources to move above: TODO: define how many belts
+fused modular frame (1)
+cooling system (1)
+turbo rifle ammo (1)
+plastic (2)
+rubber (2)
+aluminum ingot (1)
+gas filter (1)
+empty fluid tank (1)
+BONUS concrete (1) (split into 2 lanes for increased concrete generation)
+SUM CLIMBING: 11
+```
+
+```
+resources to create below:
+smokeless powder
+black powder
+aluminum ingot
+aluminum casing
+gas filter
+empty fluid tank
+```
+
+```
+bonus concrete:
+use 401.878307 limestone (overflow) for pure concrete
+need 334.89858916666666666666666666667 extra water
+4 refineries
+lowest at 3.3489858916666666666666666666667 efficiency
+```
+
+```
+below floor:
+27 down (from above) => ingredients for down (14) + final products from above (13)
+11 UP (from below)
+```
+
+### NEW ALGOS
+
+```
+Objective: sort recipes in order to maximise output usage in the next input (minimise parallel belts)
+	-> following the tree should also give an order for ingredients
+
+acquired things = raw resources
+
+create as many trees as there are things created from already acquired things
+	-> combine recipes which create the same thing in the same tree
+	-> recipes which create multiple things combien the trees for the multiple things
+	-> if something is created by multiple routes and one route can not be created yet, don't create a tree for that yet
+-> sort them (trees)
+1- fully consume X things (x high is better => consume others) -> this criterion must consider partially consumed things
+2- created using X things (x high is better => consume others)
+3- used to create X NEW things (x low is better => consume itself) -> this criterion must consider all products and their usage
+4- from tier x (x high is better => complete a subtree depth first)
+
+Forcibly construct the first tree using all fluids => this will add the bias for the construction start inside the solid factory since
+all products from refineries will be at the same grade as raw resources
+
+same algo as above, but only create trees from recipes using a fluid
+-> when all trees are stuck, consider all required missing ingredients, and evaluate if some are entirely required in current trees
+-> if so, add that recipe to the tree, and evaluate again, with the resources. Once no ingredient is entirely required in current trees,
+-> consider that ingredient available if it is not produced by a pending recipe with fluid (add required belts to the belts count), and continue.
+-> if a product is created by a fluid machine, add all recipes producing that product in the tree (same as above), even if the other recipes do not consume a fluid.
+
+The final "bus" entry is constituted by "extra ingredients" forcibly added + raw resources
+	=> don't care about buses for now
+
+Now, start the normal algo, but all resources created in the fluid section are already available
+	=> don't care about buses and volume for now
+
+
+TODO
+=> alter algorithm at the end to handle this:
+biased algorithm:
+-> with fluids, consider that all ingredients created using non-fluid machines are already available
+-> without fluids, consider that all ingredients created using fluid machines are already available
+```
+
