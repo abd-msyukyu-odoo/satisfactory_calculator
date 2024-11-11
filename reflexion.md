@@ -456,8 +456,8 @@ create as many trees as there are things created from already acquired things
 	-> if something is created by multiple routes and one route can not be created yet, don't create a tree for that yet
 -> sort them (trees)
 1- fully consume X things (x high is better => consume others) -> this criterion must consider partially consumed things
-2- created using X things (x high is better => consume others)
-3- used to create X NEW things (x low is better => consume itself) -> this criterion must consider all products and their usage
+2- used to create X NEW things (x low is better => consume itself) -> this criterion must consider all products and their usage
+3- created using X things (x high is better => consume others)
 4- from tier x (x high is better => complete a subtree depth first)
 
 Forcibly construct the first tree using all fluids => this will add the bias for the construction start inside the solid factory since
@@ -476,10 +476,73 @@ Now, start the normal algo, but all resources created in the fluid section are a
 	=> don't care about buses and volume for now
 
 
-TODO
-=> alter algorithm at the end to handle this:
-biased algorithm:
--> with fluids, consider that all ingredients created using non-fluid machines are already available
--> without fluids, consider that all ingredients created using fluid machines are already available
+
+-> idea: complete the first tree to the max => when blocked, advance the next tree
+	-> when all trees are blocked -> incremental sudoku pose
+		-> evaluate if a resource is entirely required in the lowest amount of trees and would unlock a new step
+```
+
+```
+special order:
+                # fully consume X things (high) (=> no more recipe in either batch or target)
+                # used to create X things (low) (count for each output the amount of global recipes using that output and sum)
+                # created using X things (high) (count ingredients)
+                # have the highest sequence in recipes_sequences
+                # alphabetical order
+
+idea is to create sections which are sets of recipes which like to be bundled together following a series of criteria
+- first section is "fluid"
+	- artificial pre-batch of recipes, but still allowed to pick from main pool
+	- start with sub-blocks for each raw resource following the special order thingy
+		=> water should have a bad score because it is used everywhere
+	- each sub block has a list of "IN" and "OUT", idea is to consume target recipes while maintaining "IN" and "OUT" low for each sub-block
+	- every block should have a complete list of "IN" and "OUT", and "OUT" should count the amount of different recipes using that "OUT" (even if incorrect if multiple sources) => OUTSIDE OF THE BLOCK
+	- once a sub block uses all "OUT" of another sub block, they can be merged together
+	- sub blocks are allowed to use any available output from any other sub block (share)
+	---
+	- go forward in a sub-block with current available resources => search for recipes using these
+		- if nothing is found:
+			- identify recipes needing only i=1++ missing ingredient
+			- priority if all recipes using that ingredient are present (fully consumed)
+				-> allow picking a recipe from the main pool
+					-> recursively iterate on its ingredients until either all of them are available, or rendered available with
+					the next condition
+			- priority for the most common needed ingredient
+				-> add that ingredient to "IN" for every sub-block and consider it acquired for the section
+		- if there is no recipe using all "OUT", block has ended
+	- sub-block completed first is the one with the best recipe in the batch using the order heuristic, even if it was not the first sub-block initially
+	- once a recipe is "elected" it gains a sequence number in its block, and an overall "election" sequence number
+
+
+-> what I'm expecting from this is: one big sub-block for everything related to crude oil
+-> many smaller blocks (1 aluminum, 1 limestone, 1 copper sheet, etc)
+-> nitrogen should merge with bauxite
+
+
+- then, sections are defined by space "volume"
+	-> which are currently unknown lol, so later sections should be computed AFTER the results are out
+```
+
+```
+associer une valeur a chaque IN pour savoir combien on consomme
+
+associer une valeur a chaque OUT pour savoir combien on produit
+
+apres avoir merge les in et les out, on peut regarder les autres blocks et voir si leurs OUT sont entierement consommés par nous (pas clair, 1 OUT =\= 1 IN, but ALL OUT == ALL IN)
+
+associate with matching block:
+	-> each block has available_resources set
+	=> matching block is the block with the most available_resources present in the ingredients of a recipe
+	
+master blocks are re-ordered each time a recipe is selected => the block receiving the recipe becomes the first master block
+
+choosing best block match evaluates the tier of the matching resources => use highest tier in priority
+	=> unfortunately, water has a high tier because it is produced late?? -> but maybe it's a good thing, who knows
+	=> also, it is highly improbable that the water block will be mixed with any other since it is used everywhere
+	=> but how can we make it so that water recipes don't go into the water block because of the "high tier" :/
+```
+
+```
+go through recipes in order, add the sequence of the recipe creating an ingredient for the first time and don't update it again
 ```
 

@@ -3,7 +3,7 @@
 class Recipe:
     def __init__(self, data):
         '''
-        self.resources[resource_key] = ratio/min for the recipe
+        self.resources["+"|"-"][resource_key] = ratio/min for the recipe
         self.power = overwritten consumption or building power
         self.efficiency = percentage of recipe ratio
         '''
