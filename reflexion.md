@@ -540,9 +540,25 @@ choosing best block match evaluates the tier of the matching resources => use hi
 	=> unfortunately, water has a high tier because it is produced late?? -> but maybe it's a good thing, who knows
 	=> also, it is highly improbable that the water block will be mixed with any other since it is used everywhere
 	=> but how can we make it so that water recipes don't go into the water block because of the "high tier" :/
+	
+	
+-> sort blocks based on their first recipe using the same algo
+-> don't do the pivot thingy
+-> consider tier of resource for block best match
 ```
 
 ```
 go through recipes in order, add the sequence of the recipe creating an ingredient for the first time and don't update it again
+```
+
+```
+issue when choosing block => available_resources from the block is used as a criterion, but preferably we would like to only consider outputs
+	=> that itself will also be an issue for byproducts
+=> add notion of MINOR and MAJOR output for a recipe
+	-> solo = major
+	-> multi => major is the highest tier resource produced, others are minor
+	-> when choosing a block, prefer a major output over a minor one
+	
+-> debug is at pure quartz recipe
 ```
 

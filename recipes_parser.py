@@ -24,26 +24,63 @@ FLUIDS = {
     "water",
 }
 
+class Inventory:
+    def __init__(self, solver):
+        self.solver = solver
+        self.OUT = {}
+        self.IN = {}
+        self.T_OUT = {}
+        self.T_IN = {}
+        self.available_resources = set()
+        self.external_resources = set()
+        self.pool = set(solver.used_recipes.keys())
+        self.fill_inventory()
+
+    def fill_inventory(self):
+        for resource, data in self.solver.resources.items():
+            self.T_OUT[resource] = len(data["+"])
+            self.OUT[resource] = len(data["+"])
+            self.T_IN[resource] = len(data["-"]) # amount of recipes needing a specific resource as input
+            self.IN[resource] = len(data["-"]) # same as above, but will be reduced each time a recipe is elected
+
 class Block:
-    def __init__(self, solver, recipe_key):
+    def __init__(self, solver, recipe_key, inventory):
         self.containers = OrderedSet([recipe_key])
         self.solver = solver
-        self.IN = set()
-        recipe = solver.recipes[recipe_key]
-        for resource in recipe.resource["-"]:
-            self.IN.add(resource)
+        self.inventory = inventory
+        self.IN = {}
         self.OUT = {}
-        for resource in recipe.resources["+"]:
-            self.OUT[resource] = self.compute_out(resource)
+        self.available_resources = set()
+        recipe = solver.recipes[recipe_key]
+        self.add_recipe(recipe)
 
-    def compute_out(self, resource):
-        ext_recipes = set(self.solver.used_recipes.keys()) - set(self.ordered_recipes_list())
-        count = 0
-        for recipe_key in ext_recipes:
-            recipe = self.solver.recipes[recipe_key]
-            if resource in recipe.resources["-"]:
-                count += 1
-        return count
+    def add_recipe(self, recipe):
+        for resource in recipe.resources["-"]:
+            self.IN.setdefault(resource, 0)
+            self.IN[resource] += 1
+            self.inventory.IN[resource] -= 1
+            if self.inventory.IN[resource] < 0:
+                raise Exception("global current resources in is negative")
+        for resource in recipe.resources["+"]:
+            self.OUT.setdefault(resource, 0)
+            self.OUT[resource] += 1
+            self.inventory.OUT[resource] -= 1
+            if self.inventory.OUT[resource] < 0:
+                raise Exception("global current resources out is negative")
+        self.available_resources |= set(recipe.resources["+"].keys()) | set(recipe.resources["-"].keys())
+        self.inventory.available_resources |= set(recipe.resources["+"].keys())
+        self.inventory.external_resources -= set(recipe.resources["+"].keys())
+        self.containers.add(recipe.key)
+
+    def add_block(self, block):
+        for resource in block.IN:
+            self.IN.setdefault(resource, 0)
+            self.IN[resource] += 1
+        for resource in block.OUT:
+            self.OUT.setdefault(resource, 0)
+            self.OUT[resource] += 1
+        self.available_resources |= block.available_resources
+        self.containers.add(block)
 
     def ordered_recipes_list(self):
         recipes = []
@@ -163,54 +200,30 @@ class Solver:
                 register_recipe(recipe)
 
         return output, power, resources, used_recipes
-    
-    def working_here(self, recipes_sequence_map):
+
+    def working_here(self, recipes_sequence_map, resources_sequence_map):
         def prepare_recipe_sets():
             fluid_recipes = set()
             for fluid in FLUIDS:
-                fluid_recipes |= self.resources[fluid]["+"] | self.resources[fluid]["-"]
+                if fluid in self.resources:
+                    fluid_recipes |= self.resources[fluid]["+"] | self.resources[fluid]["-"]
             return set(self.used_recipes.keys()) - fluid_recipes, fluid_recipes
-        
-        normal_pool, fluid_pool = prepare_recipe_sets()
-        sections = {
-            "fluids": {
-                "pool": fluid_pool,
-                "blocks": [],
-            },
-            "others": {
-                "pool": normal_pool,
-                "blocks": [],
-            }
-        }
-        available_resources = set()
-        resources_IN = {} # amount of recipes needing a specific resource as input
-        current_resources_IN = {} # same as above, but will be reduced each time a recipe is elected
-        for resource, data in self.resources:
-            resources_IN[resource] = len(data["-"])
-            current_resources_IN[resource] = len(data["-"])
 
-
-        def construct_base_blocks(section):
-            for recipe in section["pool"]:
-                if len(self.recipes[recipe].resources["-"]) == 0:
-                    for resource in self.recipes["+"]:
-                        available_resources.add(resource)
-                    section["blocks"].append(Block(self, recipe))
-        def select_best_recipe(recipes):
+        def sort_recipes(recipes):
             if len(recipes) == 0:
-                return None
+                return []
             def fully_consume_things(recipe):
                 count = 0
                 for resource in recipe.resources["-"]:
-                    if current_resources_IN[resource] == 1:
+                    if inventory.IN[resource] == 1:
                         count += 1
-                    elif current_resources_IN[resource] < 1:
+                    elif inventory.IN[resource] < 1:
                         raise Exception("trying to consume more than exists")
                 return count
             def used_to_create_things(recipe):
                 count = 0
                 for resource in recipe.resources["+"]:
-                    count += resources_IN[resource]
+                    count += inventory.T_IN[resource]
                 return count
             def created_using_things(recipe):
                 return len(recipe.resources["-"])
@@ -219,9 +232,9 @@ class Solver:
             def key(val):
                 # fully consume X things (high) (=> no more recipe in either batch or target)
                     # overall => compute all IN for every used resource => associate to a counter -> if that counter is at 1 => this matches
-                    # uses current_resources_IN
+                    # uses inventory.IN
                 # used to create X things (low) (count for each output the amount of global recipes using that output and sum)
-                    # uses recipe["+"] and resources_IN
+                    # uses recipe["+"] and inventory.T_IN
                 # created using X things (high) (count ingredients)
                     # uses recipes["-"]
                 # have the highest sequence in recipes_sequences
@@ -236,10 +249,45 @@ class Solver:
                 )
             recipes = list(recipes)
             recipes.sort(key=key)
-            return recipes[0]
-            
-    
-        construct_base_blocks(sections["fluids"])
+            return recipes
+
+        def construct_base_blocks(section):
+            recipes = []
+            for recipe in section["pool"]:
+                if len(self.recipes[recipe].resources["-"]) == 0:
+                    for resource in self.recipes[recipe].resources["+"]:
+                        inventory.available_resources.add(resource)
+                    recipes.append(self.recipes[recipe])
+            recipes = sort_recipes(recipes)
+            for recipe in recipes:
+                section["pool"].remove(recipe.key)
+                inventory.pool.remove(recipe.key)
+                section["blocks"].append(Block(self, recipe.key, inventory))
+
+        def find_best_block(section, recipe):
+            # associate with the best matching block
+            # iterate over blocks
+            # check number of matches (consumed vs available_resources in a block)
+            # highest number of matches, then highest tiered matches, then order of block (highest tiered block)
+            result = []
+            idx = 0
+            for block in section["blocks"]:
+                match = block.available_resources & set(recipe.resources["-"].keys())
+                result.append({
+                    "match": match,
+                    "index": idx,
+                })
+                idx += 1
+            def match_tier(match):
+                match = list(match)
+                match.sort(key=lambda val: -resources_sequence_map[val])
+                return tuple(map(lambda val: -resources_sequence_map[val], match))
+            def key(val):
+                return (-len(val["match"]),) + match_tier(val["match"]) + (val["index"],)
+            result.sort(key=key)
+            block = section["blocks"][result[0]["index"]]
+            return block
+
         # phase 1:
             # take recipes with all available ingredients
             # independent from blocks
@@ -249,32 +297,93 @@ class Solver:
             batch = set()
             for recipe_key in section["pool"]:
                 recipe = self.recipes[recipe_key]
-                if all(resource in available_resources for resource in recipe.resources["-"]):
+                if all(resource in inventory.available_resources for resource in recipe.resources["-"]):
                     batch.add(recipe)
             if len(batch) == 0:
                 return None
-            recipe = select_best_recipe(batch)
-            # associate with the best matching block
+            recipe = sort_recipes(batch)[0]
+            block = find_best_block(section, recipe)
+            # add recipe to block:
+                # update IN, OUT, global current IN, global available_resources, block available_resources
+            block.add_recipe(recipe)
+            section["pool"].remove(recipe.key)
+            inventory.pool.remove(recipe.key)
+            # TODO ABD: niche optimization, skipping for now:
+            # evaluate all fully consumed resources in the block
+                # => block.IN[resource] == inventory.IN[resource]
+            # search for each of such resource if another block fully outputs a subset of fully consumed resources
+                # => block.OUT[resource] == inventory.OUT[resource], and all OUT keys are included in IN keys prio
+            return recipe.key
 
         # phase 2:
-        def phase2():
-            # identify recipes using OUT resources per megablock
-            # identify RESOURCE fully used per megablock in these recipes
-            # add a sub-block creating that resource, and recursively fill it in reverse using phase2 then phase3 for each ingredient
-            # no matter if there are multiples of such ingredients (but then the recipe should have a less good score)
-            # runs once per megablock, take the best recipe per megablock, then the best recipe across all megablocks
-            # => that megablock advances
-            batch = {}
-            return batch
+            # same as phase1, but allowing X missing ingredients
+            # make missing ingredient become available and add it to IN
+            # will allow to create canisters in the end because packaged water will be made available
+            # => unlock fuel
+            # => unlock canister
+            # => unlocks packaged water in reverse
 
-        # phase 3:
             # identify recipes using OUT resources for all megablocks
             # sort recipes by amount of missing ingredients
             # only consider recipes with the lowest amount
             # take most needed RESOURCE for recipes with the lowest amount of missing ingredients
             # consider that RESOURCE available, and add it as IN for each megablock needing it
-        def phase3():
-            return
+        def phase2(section):
+            for i in range(1, 5):
+                batch = {}
+                for recipe_key in section["pool"]:
+                    recipe = self.recipes[recipe_key]
+                    missing = set()
+                    for resource in recipe.resources["-"]:
+                        if resource not in inventory.available_resources:
+                            missing.add(resource)
+                    if len(missing) == i:
+                        batch[recipe_key] = missing
+                if len(batch) == 0:
+                    continue
+                handled_recipes = set()
+                aggregate = []
+                pairs = list(batch.items())
+                max_aggregate = 0
+                for i, (recipe_key, missing) in enumerate(pairs):
+                    recipes = set()
+                    if recipe_key in handled_recipes:
+                        continue
+                    recipes.add(recipe_key)
+                    handled_recipes.add(recipe_key)
+                    for (recipe_key2, missing2) in pairs[i + 1:]:
+                        if recipe_key2 in handled_recipes:
+                            continue
+                        if missing == missing2:
+                            recipes.add(recipe_key2)
+                            handled_recipes.add(recipe_key2)
+                    aggregate.append(recipes)
+                    max_aggregate = max(max_aggregate, len(recipes))
+                aggregate = list(filter(lambda recipes: len(recipes) == max_aggregate, aggregate))
+                # pick the best combination of missing ingredients
+                # can mix the recipes and use the previous algo to choose the best recipe
+                # or sort resources by descending tiers, and choose the combination with the lowest
+                # first tier => create a more basic object first => potentially do more things
+                def key(val):
+                    missing = batch[list(val)[0]]
+                    missing = list(missing)
+                    missing.sort(key=lambda res: -resources_sequence_map[res])
+                    return tuple(map(lambda res: resources_sequence_map[res], missing))
+                aggregate.sort(key=key)
+                # identify the most needed resources package
+                # only keep recipes using these resources
+                recipes_keys = aggregate[0] # best recipes to choose from
+                # then, sort recipes like before
+                # only difference is that these resources should be added as IN as well
+                # and they should be added to a temporary inventory
+                # temporary inventory should be emptied once a recipe outputs the resource afterwards
+                recipe = sort_recipes(set(map(lambda recipe_key: self.recipes[recipe_key], recipes_keys)))[0]
+                # block = find_best_block(section, recipe) # not needed to handle a block => will be done in phase1
+                missing = batch[recipe.key]
+                inventory.available_resources |= missing
+                inventory.external_resources |= missing
+                return recipe.key
+            return None
                 
                 
 
@@ -293,10 +402,46 @@ class Solver:
                 # merge blocks, update IN and OUT recursively, ...
             # go again
 
-        
+        normal_pool, fluid_pool = prepare_recipe_sets()
+        sections = {
+            "fluids": {
+                "pool": fluid_pool,
+                "blocks": [],
+            },
+            "others": {
+                "pool": normal_pool,
+                "blocks": [],
+            }
+        }
+        inventory = Inventory(self)
 
+        construct_base_blocks(sections["fluids"])
+        while len(sections["fluids"]["pool"]):
+            if phase1(sections["fluids"]):
+                continue
+            elif phase2(sections["fluids"]):
+                continue
+            else:
+                raise Exception("Unable to use a recipe in fluids")
+            
+        # TODO recursively add fully used resources in the fluids section
+        # search for resources fully used in the fluids section
+        # import all recipes creating these resources
+            # do the same recursively for their ingredients until
+                # they are not fully used (=> just inputs, phase2)
+                # they are fully used (=> import recipe in the same block, repeat for ingredients)
+        # eliminate resources added through phase2 from inventory.available_resources
+        inventory.external_resources = set()
 
         construct_base_blocks(sections["others"])
+        while len(sections["others"]["pool"]):
+            if phase1(sections["others"]):
+                continue
+            elif phase2(sections["others"]):
+                continue
+            else:
+                raise Exception("Unable to use a recipe in others")
+        # TODO return ordered recipes following blocks
         return None
 
     def compute_sequences(self):
@@ -304,7 +449,6 @@ class Solver:
         resources = {}  # sequence for each resource name
         recipes = {}  # sequence for each recipe name
         for resource, data in self.resources.items():
-            # resources[resource] = 1  # default sequence
             if len(data["+"]) == 0:
                 print(f"missing {self.RED}{resource}{self.RESET} ?")
                 batch[resource] = set()  # empty recipe set since that resource is not produced in these instructions
@@ -332,7 +476,6 @@ class Solver:
                 if len(recipe_links) > 0:
                     recipes[recipe] = sequence
                     for ingredient in data.resources["+"]:
-                        # resources[ingredient] = sequence  # only update sequence for a newly acquired resource
                         new_batch.setdefault(ingredient, set())
                         new_batch[ingredient] = new_batch[ingredient] | recipe_links
             sequence += 1
@@ -346,7 +489,6 @@ class Solver:
                 return (-sequence_map[val], val)
             ordered.sort(key=key)
             return ordered
-        
         ordered_recipes = order_by_sequence(recipes)
         for recipe_key in list(reversed(ordered_recipes)):
             recipe = self.recipes[recipe_key]
@@ -357,7 +499,7 @@ class Solver:
         ordered_resources = order_by_sequence(resources)
 
         # TODO: working here
-        # self.working_here(recipes)
+        self.working_here(recipes, resources)
 
         return ordered_recipes, ordered_resources
 
