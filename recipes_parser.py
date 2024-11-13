@@ -508,6 +508,8 @@ class Solver:
             if len(block.containers) > 0:
                 blocks.append(block)
         sections["others"]["blocks"] = blocks
+        # TODO clean all blocks with 1-2 container IF they are consumed ? not really necessary
+
         # TODO return ordered recipes following blocks
         return None
 
