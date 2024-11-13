@@ -25,7 +25,8 @@ FLUIDS = {
 }
 
 class Inventory:
-    def __init__(self, solver):
+    def __init__(self, solver, resources_sequence_map):
+        self.resources_sequence_map = resources_sequence_map
         self.solver = solver
         self.OUT = {}
         self.IN = {}
@@ -44,15 +45,14 @@ class Inventory:
             self.IN[resource] = len(data["-"]) # same as above, but will be reduced each time a recipe is elected
 
 class Block:
-    def __init__(self, solver, recipe_key, inventory):
-        self.containers = OrderedSet([recipe_key])
+    def __init__(self, solver, inventory):
+        self.containers = OrderedSet()
         self.solver = solver
         self.inventory = inventory
         self.IN = {}
-        self.OUT = {}
-        self.available_resources = set()
-        recipe = solver.recipes[recipe_key]
-        self.add_recipe(recipe)
+        self.MINOR_OUT = {}
+        self.MAJOR_OUT = {}
+        # self.available_resources = set()
 
     def add_recipe(self, recipe):
         for resource in recipe.resources["-"]:
@@ -61,26 +61,39 @@ class Block:
             self.inventory.IN[resource] -= 1
             if self.inventory.IN[resource] < 0:
                 raise Exception("global current resources in is negative")
+        max_resource_sequence = 0
         for resource in recipe.resources["+"]:
-            self.OUT.setdefault(resource, 0)
-            self.OUT[resource] += 1
+            sequence = self.inventory.resources_sequence_map[resource]
+            if sequence > max_resource_sequence:
+                max_resource_sequence = sequence
+        for resource in recipe.resources["+"]:
+            sequence = self.inventory.resources_sequence_map[resource]
+            target = self.MINOR_OUT
+            if sequence == max_resource_sequence:
+                target = self.MAJOR_OUT
+            target.setdefault(resource, 0)
+            target[resource] += 1
             self.inventory.OUT[resource] -= 1
             if self.inventory.OUT[resource] < 0:
                 raise Exception("global current resources out is negative")
-        self.available_resources |= set(recipe.resources["+"].keys()) | set(recipe.resources["-"].keys())
+        # self.available_resources |= set(recipe.resources["+"].keys()) | set(recipe.resources["-"].keys())
         self.inventory.available_resources |= set(recipe.resources["+"].keys())
         self.inventory.external_resources -= set(recipe.resources["+"].keys())
         self.containers.add(recipe.key)
 
-    def add_block(self, block):
+    def add_block(self, block, as_container=True):
         for resource in block.IN:
             self.IN.setdefault(resource, 0)
             self.IN[resource] += 1
-        for resource in block.OUT:
-            self.OUT.setdefault(resource, 0)
-            self.OUT[resource] += 1
-        self.available_resources |= block.available_resources
-        self.containers.add(block)
+        for resource in block.MINOR_OUT:
+            self.MINOR_OUT.setdefault(resource, 0)
+            self.MINOR_OUT[resource] += 1
+        for resource in block.MAJOR_OUT:
+            self.MAJOR_OUT.setdefault(resource, 0)
+            self.MAJOR_OUT[resource] += 1
+        # self.available_resources |= block.available_resources
+        if as_container:
+            self.containers.add(block)
 
     def ordered_recipes_list(self):
         recipes = []
@@ -262,19 +275,28 @@ class Solver:
             for recipe in recipes:
                 section["pool"].remove(recipe.key)
                 inventory.pool.remove(recipe.key)
-                section["blocks"].append(Block(self, recipe.key, inventory))
+                block = Block(self, inventory)
+                block.add_recipe(recipe)
+                section["blocks"].append(block)
 
-        def find_best_block(section, recipe):
+        def find_best_block(section, recipe, reverse = False):
             # associate with the best matching block
             # iterate over blocks
             # check number of matches (consumed vs available_resources in a block)
             # highest number of matches, then highest tiered matches, then order of block (highest tiered block)
+            # major matches are considered before minor matches
             result = []
             idx = 0
             for block in section["blocks"]:
-                match = block.available_resources & set(recipe.resources["-"].keys())
+                # match = block.available_resources & set(recipe.resources["-"].keys())
+                ingredients = set(recipe.resources["+" if reverse else "-"].keys())
+                major_match = set(block.MAJOR_OUT.keys()) & ingredients
+                full_match = (set(block.MAJOR_OUT.keys()) | set(block.MINOR_OUT.keys()) | set(block.IN.keys())) & ingredients
+                # minor_match = (set(block.MINOR_OUT.keys()) & ingredients) - major_match
                 result.append({
-                    "match": match,
+                    "major_match": major_match,
+                    # "minor_match": minor_match,
+                    "full_match": full_match,
                     "index": idx,
                 })
                 idx += 1
@@ -283,7 +305,17 @@ class Solver:
                 match.sort(key=lambda val: -resources_sequence_map[val])
                 return tuple(map(lambda val: -resources_sequence_map[val], match))
             def key(val):
-                return (-len(val["match"]),) + match_tier(val["match"]) + (val["index"],)
+                return (
+                    (
+                        -len(val["major_match"]),
+                        -len(val["full_match"]),
+                        # -len(val["minor_match"])
+                    )
+                    + match_tier(val["full_match"])
+                    # + match_tier(val["major_match"])
+                    # + match_tier(val["minor_match"])
+                    + (val["index"],)
+                )
             result.sort(key=key)
             block = section["blocks"][result[0]["index"]]
             return block
@@ -293,7 +325,7 @@ class Solver:
             # independent from blocks
             # will be associated with a block later (define criterion)
             # update IN and OUT values according to ingredients used in the new recipe
-        def phase1(section):
+        def phase1(section, reverse = False):
             batch = set()
             for recipe_key in section["pool"]:
                 recipe = self.recipes[recipe_key]
@@ -302,7 +334,7 @@ class Solver:
             if len(batch) == 0:
                 return None
             recipe = sort_recipes(batch)[0]
-            block = find_best_block(section, recipe)
+            block = find_best_block(section, recipe, reverse)
             # add recipe to block:
                 # update IN, OUT, global current IN, global available_resources, block available_resources
             block.add_recipe(recipe)
@@ -384,8 +416,16 @@ class Solver:
                 inventory.external_resources |= missing
                 return recipe.key
             return None
-                
-                
+        
+        def phase3(section):
+            for external_resource in inventory.external_resources:
+                in_count = 0
+                for block in section["blocks"]:
+                    in_count += block.IN.get(external_resource) or 0
+                if inventory.T_IN[external_resource] == in_count:
+                    recipes = self.resources[external_resource]["+"] & inventory.pool
+                    section["pool"] |= recipes
+
 
         # iteration:
             # take feasible recipes
@@ -413,17 +453,22 @@ class Solver:
                 "blocks": [],
             }
         }
-        inventory = Inventory(self)
+        inventory = Inventory(self, resources_sequence_map)
 
         construct_base_blocks(sections["fluids"])
-        while len(sections["fluids"]["pool"]):
-            if phase1(sections["fluids"]):
+        reverse = False
+        while len(sections["fluids"]["pool"]) > 0:
+            if phase1(sections["fluids"], reverse):
+                if len(sections["fluids"]["pool"]) == 0:
+                    reverse = True
+                    phase3(sections["fluids"]) # phase3 could also be done right after phase2
+                                               # but then reverse mode would have to be stored in another way
                 continue
             elif phase2(sections["fluids"]):
                 continue
             else:
                 raise Exception("Unable to use a recipe in fluids")
-            
+
         # TODO recursively add fully used resources in the fluids section
         # search for resources fully used in the fluids section
         # import all recipes creating these resources
@@ -431,9 +476,26 @@ class Solver:
                 # they are not fully used (=> just inputs, phase2)
                 # they are fully used (=> import recipe in the same block, repeat for ingredients)
         # eliminate resources added through phase2 from inventory.available_resources
+        inventory.available_resources -= inventory.external_resources
         inventory.external_resources = set()
 
+        sections["others"]["pool"] &= inventory.pool # some recipes could have ben extracted in reverse by fluids section
         construct_base_blocks(sections["others"])
+        # create OUT set for the fluid section
+        # create a block for each OUT
+        fluid_resources = set()
+        for block in sections["fluids"]["blocks"]:
+            fluid_resources |= set(block.MAJOR_OUT.keys()) | set(block.MINOR_OUT.keys())
+        fluid_resources -= FLUIDS
+        for fluid_resource in fluid_resources:
+            block = Block(self, inventory)
+            block.MAJOR_OUT[fluid_resource] = 1
+            sections["others"]["blocks"].append(block)
+
+        # fluid_block = Block(self, inventory)
+        # for block in sections["fluids"]["blocks"]:
+        #     fluid_block.add_block(block, as_container=False)
+        # sections["others"]["blocks"].append(fluid_block)
         while len(sections["others"]["pool"]):
             if phase1(sections["others"]):
                 continue
@@ -441,6 +503,11 @@ class Solver:
                 continue
             else:
                 raise Exception("Unable to use a recipe in others")
+        blocks = []
+        for block in sections["others"]["blocks"]:
+            if len(block.containers) > 0:
+                blocks.append(block)
+        sections["others"]["blocks"] = blocks
         # TODO return ordered recipes following blocks
         return None
 

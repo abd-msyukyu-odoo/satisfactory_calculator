@@ -560,5 +560,41 @@ issue when choosing block => available_resources from the block is used as a cri
 	-> when choosing a block, prefer a major output over a minor one
 	
 -> debug is at pure quartz recipe
+
+=> either:
+	don't count minor OUT at all => not good
+	
+	
+model default: available resource means that it will match a recipe using that resource, even if the available resource is not enough to fill the demand
+	=> either: wait the full result before ordering, and consider quantities
+
+either: split minor and major
+	-> len(major_match) > len(minor_match) > major_match_tier > minor_match_tier > block index
+	=> more major match but less match overall => better pick
+	=> same major match but less match overall => minor match wins
+	=> same major match same minor match => take best major_match tier
+	=> 
+	
+	
+=> create a block named after "fluids" section at the highest index with all outputs/inputs from fluids ?
+=> it will be greedy for recipes since it potentially will have a lot of matches
+=> if I don't do that, recipes will randomly be assigned
+	=> I have to do that
+	
+TODO now: -> logic to grep recipes fully used in fluids section
+=> maybe it would have been better to create one block per OUT ingredient instead of one giga-block for the entire fluid section ?
+=> this will let more opportunities to create sub-blocks
+	=> sub-blocks will be more linked to each other
+=> definitely better
+
+-> some recipes can be extracted directly from that result
+	-> not perfect, because aluminum ingots still chose to build other things from that block
+-> blocks can be simplified (remove base resources)
+
+
+How to grep: ALL IN are in the "fluids" section => take ALL OUT remaining recipes in the global pool and continue phase1 and phase2 on fluids => this is phase3 actually :)
+	-> only issue is that this time, we match on inputs of a block based on outputs of a recipe (reverse)
+		-> so actually it isn't phase1 and phase2
+		-> extra phase
 ```
 
