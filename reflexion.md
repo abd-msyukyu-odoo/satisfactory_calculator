@@ -596,5 +596,47 @@ How to grep: ALL IN are in the "fluids" section => take ALL OUT remaining recipe
 	-> only issue is that this time, we match on inputs of a block based on outputs of a recipe (reverse)
 		-> so actually it isn't phase1 and phase2
 		-> extra phase
+		
+		
+
+change display to use blocks, maybe sort blocks ?
+
+
+TODO NEXT -> use that order for recipes, and display blocks in the google sheet
+-> once the result is out:
+	-> allocate blocks by volume (split and combine blocks)
+	-> custom compute buses:
+		- special buses format for fluids (horizontal)
+		- special buses format between volumes (vertical)
+```
+
+```
+new algo:
+sections should be blocks too, they should each have a pool
+-> sub-blocks have the same pool as their parent ? => maybe not needed
+
+-> compute the best recipes per section with a new sorting algo using results data
+	-> then run the previous algo inside a block to join similar ingredients together
+
+fluids exception:
+	-> identify all fluid recipes first and put them in the fluids section -> no volume constraint
+	-> run a custom algorithm to grep recipes from the main pool, to minimise total amount of belts connection to the outside
+	-> no need for backtracking algo anymore, everything is decided before the existing algo runs
+```
+
+```
+todo in order:
+- define expression of block volumes and expression ->
+	-> volume of a floor: big pyramid - small pyramid
+	
+	1: 28 - 21 (approx)
+	2: 21 - 14
+	3: 14 - 0
+	5: 22 - 15
+	6: 15 - 8
+	output: 8 - 0 (irrelevant)
+	fluids: inf
+	
+1-2, 1-5 | 2-3 2-1 | 3-4 3-2 | 4-3 | 5-6 5-1 | 6-output 6-5 | output-fluids output-6 | fluids-output
 ```
 

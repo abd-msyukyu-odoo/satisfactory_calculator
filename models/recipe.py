@@ -13,6 +13,14 @@ class Recipe:
         self.efficiency = 100
         self.key = data["key"]
         self.coefficient = 1.321928
+        self.result = {"+": {}, "-": {}}  # amount of belts for each resource for this recipe
+
+    def compute_result(self, ratio, metadata):
+        self.result = {"+": {}, "-": {}}
+        for sign in ["+", "-"]:
+            for resource in self.resources[sign]:
+                size = metadata["pipe"] if resource in metadata["FLUIDS"] else metadata["belt"]
+                self.result[sign][resource] = ratio * abs(self.resources[sign][resource]) / size
 
     def scaled_power(self):
         if not self.building or not self.power:

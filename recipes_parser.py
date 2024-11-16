@@ -44,8 +44,11 @@ class Inventory:
             self.T_IN[resource] = len(data["-"]) # amount of recipes needing a specific resource as input
             self.IN[resource] = len(data["-"]) # same as above, but will be reduced each time a recipe is elected
 
+# class Path:
+#     def __init__(self, block1, block2):
+
 class Block:
-    def __init__(self, solver, inventory):
+    def __init__(self, solver, inventory=None):
         self.containers = OrderedSet()
         self.solver = solver
         self.inventory = inventory
@@ -53,6 +56,7 @@ class Block:
         self.MINOR_OUT = {}
         self.MAJOR_OUT = {}
         # self.available_resources = set()
+        self.recipes = set()
 
     def add_recipe(self, recipe):
         for resource in recipe.resources["-"]:
@@ -127,9 +131,11 @@ class Solver:
         self.RESET = "\033[0m"
         self.buildings, self.recipes = self.parse()
         (
-            self.output, self.power, self.resources, self.used_recipes
+            self.output, self.power, self.resources, self.used_recipes, self.paths
         ) = self.read_instructions()
         self.A, self.A_def, self.B, self.B_def, self.X = self.solve()
+        self.assign_recipe_results()
+        self.working_here()
 
     def parse(self):
         buildings = {}
@@ -177,6 +183,7 @@ class Solver:
         power = set()
         output = {}
         used_recipes = {}
+        paths = {}
 
         def register_recipe(recipe):
             used_recipes[recipe.key] = recipe
@@ -191,6 +198,16 @@ class Solver:
                     resources[resource]["+"].add(recipe.key)
                 if resource in recipe.resources["-"]:
                     resources[resource]["-"].add(recipe.key)
+                
+        def register_transport_sizes(belt, pipe):
+            self.belt = belt
+            self.pipe = pipe
+
+        def register_path(key1, key2):
+            paths.setdefault(key1, set())
+            paths.setdefault(key2, set())
+            paths[key1].add(key2)
+            paths[key2].add(key1)
 
         with open('data/instructions.csv', mode='r') as csv_file:
             def cmd_out(argument):
@@ -201,9 +218,21 @@ class Solver:
             def cmd_recipe(argument):
                 recipe = self.recipes[argument]
                 register_recipe(recipe)
+
+            def cmd_transport_sizes(argument):
+                argument = argument.split("#")
+                register_transport_sizes(int(argument[0]), int(argument[1]))
+
+            def cmd_blocks(argument):
+                argument = argument.split("#")
+                for block in argument[1:]:
+                    register_path(argument[0], block)
+
             cmd = {
+                "b": cmd_blocks,
                 "out": cmd_out,
                 "r": cmd_recipe,
+                "t": cmd_transport_sizes,
             }
             csv_reader = csv.DictReader(csv_file)
             for row in csv_reader:
@@ -212,9 +241,22 @@ class Solver:
             for recipe in self.recipes.values():
                 register_recipe(recipe)
 
-        return output, power, resources, used_recipes
+        return output, power, resources, used_recipes, paths
 
-    def working_here(self, recipes_sequence_map, resources_sequence_map):
+    def assign_recipe_results(self):
+        for i, recipe_key in enumerate(self.A_def):
+            recipe = self.recipes[recipe_key]
+            ratio = self.X[0][i]
+            metadata = {
+                "FLUIDS": FLUIDS,
+                "belt": self.belt,
+                "pipe": self.pipe,
+            }
+            recipe.compute_result(ratio, metadata)
+
+    def working_here(self):
+        recipes_sequence_map = self.recipes_rank
+        resources_sequence_map = self.resources_rank
         def prepare_recipe_sets():
             fluid_recipes = set()
             for fluid in FLUIDS:
@@ -487,6 +529,8 @@ class Solver:
         for block in sections["fluids"]["blocks"]:
             fluid_resources |= set(block.MAJOR_OUT.keys()) | set(block.MINOR_OUT.keys())
         fluid_resources -= FLUIDS
+        fluid_resources = list(fluid_resources)
+        fluid_resources.sort(key=lambda val: resources_sequence_map[val])
         for fluid_resource in fluid_resources:
             block = Block(self, inventory)
             block.MAJOR_OUT[fluid_resource] = 1
@@ -567,8 +611,8 @@ class Solver:
                     resources[resource] = sequence
         ordered_resources = order_by_sequence(resources)
 
-        # TODO: working here
-        self.working_here(recipes, resources)
+        self.recipes_rank = recipes
+        self.resources_rank = resources
 
         return ordered_recipes, ordered_resources
 

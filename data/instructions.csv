@@ -1,4 +1,12 @@
 command,argument
+t,780#600
+b,in#1#3
+b,out#4#fluids
+b,fluids#out
+b,1#2#in
+b,2#1
+b,3#4#in
+b,4#3#out
 out,nuclear pasta#1
 out,iodine-infused filter#1
 out,gas filter#0.8
