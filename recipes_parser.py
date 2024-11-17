@@ -1,5 +1,6 @@
 import csv
 import numpy as np
+import math
 from scipy.optimize import nnls
 from ordered_set import OrderedSet
 # from functools import reduce
@@ -24,6 +25,8 @@ FLUIDS = {
     "water",
 }
 
+MARGIN = 1/120000
+
 class Inventory:
     def __init__(self, solver, resources_sequence_map):
         self.resources_sequence_map = resources_sequence_map
@@ -47,7 +50,7 @@ class Inventory:
 class Path:
     def __init__(self, sections):
         self._sections = tuple(sections)
-        self.resources = {"+": {}, "-": {}}
+        self.lanes = {"+": {}, "-": {}}
 
     @property
     def sections(self):
@@ -75,17 +78,59 @@ class Section:
         self.pool = set()
         self.volume = float('inf')
         self.paths = {}
-        self.resources = {"+": {}, "-": {}}
+        self.lanes = {"+": {}, "-": {}}
         # TODO ABD consider OUT command (for extra bins)
         # use belts format (to be defined)
 
     def add_recipe(self, recipe_key):
         recipe = self.solver.recipes[recipe_key]
         self.pool.add(recipe_key)
+        self.inventory.pool.remove(recipe_key)
         for sign in ["+", "-"]:
-            for resource, quantity in recipe.result[sign].items():
-                self.resources[sign].setdefault(resource, 0)
-                self.resources[sign] += quantity
+            for resource, quantity in recipe.lanes[sign].items():
+                self.lanes[sign].setdefault(resource, 0)
+                self.lanes[sign][resource] += quantity
+
+    def compute_state(self):
+        resources = {}
+        for resource in (set(self.lanes["+"].keys()) | set(self.lanes["-"].keys())):
+            resources[resource] = 0
+        for resource, quantity in self.lanes["+"].items():
+            resources[resource] += quantity
+        for resource, quantity in self.lanes["-"].items():
+            resources[resource] -= quantity
+        return resources
+
+    @staticmethod
+    def get_lanes(resources):
+        external_lanes = {"+": {}, "-": {}}
+        lanes = 0
+        for resource, quantity in resources.items():
+            if quantity < 0 - MARGIN:
+                amount = math.ceil(abs(quantity) - MARGIN)
+                lanes += amount
+                external_lanes["-"][resource] = amount
+            elif quantity > 0 + MARGIN:
+                amount = math.ceil(quantity - MARGIN)
+                lanes += amount
+                external_lanes["+"][resource] = amount
+        return lanes, external_lanes
+    
+    def get_external_lanes(self):
+        return Section.get_lanes(self.compute_state())
+
+    def get_recipe_effect(self, recipe_key):
+        resources = self.compute_state()
+        recipe = self.solver.recipes[recipe_key]
+        lanes_before, _ = Section.get_lanes(resources)
+        for resource, quantity in recipe.lanes["+"].items():
+            resources.setdefault(resource, 0)
+            resources[resource] += quantity
+        for resource, quantity in recipe.lanes["-"].items():
+            resources.setdefault(resource, 0)
+            resources[resource] -= quantity
+        lanes_after, _ = Section.get_lanes(resources)
+        return lanes_before - lanes_after
 
 class Block:
     def __init__(self, solver, inventory):
@@ -104,15 +149,10 @@ class Block:
             self.inventory.IN[resource] -= 1
             if self.inventory.IN[resource] < 0:
                 raise Exception("global current resources in is negative")
-        max_resource_sequence = 0
+        max_output_resources = recipe.max_output_resources(self.inventory.resources_sequence_map)
         for resource in recipe.resources["+"]:
-            sequence = self.inventory.resources_sequence_map[resource]
-            if sequence > max_resource_sequence:
-                max_resource_sequence = sequence
-        for resource in recipe.resources["+"]:
-            sequence = self.inventory.resources_sequence_map[resource]
             target = self.MINOR_OUT
-            if sequence == max_resource_sequence:
+            if resource in max_output_resources:
                 target = self.MAJOR_OUT
             target.setdefault(resource, 0)
             target[resource] += 1
@@ -319,7 +359,11 @@ class Solver:
             for recipe in prepare_fluids_pool():
                 sections["fluids"].add_recipe(recipe)
             for key, assignation in self.assignations.items():
-                sections[key].pool |= assignation
+                for recipe_key in assignation:
+                    sections[key].add_recipe(recipe_key)
+            for recipe_key in set(inventory.pool):
+                if len(self.recipes[recipe_key].resources["-"]) == 0:
+                    sections["in"].add_recipe(recipe_key)
             for key, volume in self.volumes.items():
                 sections[key].volume = volume
             paths = {}
@@ -334,7 +378,7 @@ class Solver:
                     sections[section].paths[name] = path
             for key, output in self.output.items():
                 size = self.pipe if key in FLUIDS else self.belt
-                sections["out"].resources["-"][key] = abs(output) / size
+                sections["out"].lanes["-"][key] = abs(output) / size
             construct_base_blocks(sections["fluids"])
             return sections
 
@@ -397,7 +441,7 @@ class Solver:
             recipes = sort_recipes(recipes)
             for recipe in recipes:
                 section.pool.remove(recipe.key)
-                inventory.pool.remove(recipe.key)
+                # inventory.pool.remove(recipe.key)
                 block = Block(self, inventory)
                 block.add_recipe(recipe)
                 section.blocks.append(block)
@@ -462,7 +506,7 @@ class Solver:
                 # update IN, OUT, global current IN, global available_resources, block available_resources
             block.add_recipe(recipe)
             section.pool.remove(recipe.key)
-            inventory.pool.remove(recipe.key)
+            # inventory.pool.remove(recipe.key)
             # TODO ABD: niche optimization, skipping for now:
             # evaluate all fully consumed resources in the block
                 # => block.IN[resource] == inventory.IN[resource]
@@ -541,24 +585,51 @@ class Solver:
             return None
         
         def phase3(section):
-            for external_resource in inventory.external_resources:
-                in_count = 0
-                for block in section.blocks:
-                    in_count += block.IN.get(external_resource) or 0
-                if inventory.T_IN[external_resource] == in_count:
-                    recipes = self.resources[external_resource]["+"] & inventory.pool
-                    section.pool |= recipes
+            return False
+            # for external_resource in inventory.external_resources:
+            #     in_count = 0
+            #     for block in section.blocks:
+            #         in_count += block.IN.get(external_resource) or 0
+            #     if inventory.T_IN[external_resource] == in_count:
+            #         recipes = self.resources[external_resource]["+"] & inventory.pool
+            #         section.pool |= recipes
 
         def optimize_fluid_section(section):
+            # filter recipes that produce at least one ingredient that is
+            # consumed in the section
             batch = set()
-            for recipe_key in inventory.pool:
+            consumed = set(section.lanes["-"].keys())
+            for recipe_key in section.inventory.pool:
                 recipe = self.recipes[recipe_key]
-            # compute in/out of the section (=> combine + and - and see what's left)
-            # 
-            # get an array of all recipes, sort it with criteria:
-            # from the previous computation, select recipe which removes the most belts
-                # limit only inputs ? => to not continue to craft more late tiers ?
-                # 
+                for resource in recipe.resources["+"]:
+                    if resource in consumed:
+                        batch.add(recipe.key)
+                        break
+            if len(batch) == 0:
+                return False
+            # iterate over recipes which fully produce what's needed for a resource or less
+            enclosed_recipes = set()
+            for recipe_key in batch:
+                recipe = self.recipes[recipe_key]
+                max_output_resources = recipe.max_output_resources(inventory.resources_sequence_map)
+                for resource in max_output_resources:
+                    if resource not in consumed:
+                        continue
+                    if recipe.lanes["+"][resource] <= section.lanes["-"][resource] + MARGIN:
+                        enclosed_recipes.add(recipe.key)
+            if len(enclosed_recipes) != 0:
+                for recipe_key in enclosed_recipes:
+                    section.add_recipe(recipe_key)
+                # return to get other enclosed_recipes
+                return True
+            def compute_recipe_effect(recipe_key):
+                return section.get_recipe_effect(recipe_key)
+            recipes = list(filter(lambda recipe: compute_recipe_effect(recipe) > 0, batch))
+            if len(recipes) != 0:
+                for recipe_key in recipes:
+                    section.add_recipe(recipe_key)
+                return True
+            return False
 
 
         # iteration:
@@ -585,9 +656,9 @@ class Solver:
             # => should search for "best recipe" with an algo limiting resources on a path
             # think about combining "remain" belts from other sections => should continue until they are fully
             # used
-        something = True
-        while something:
-            optimize_fluid_section(sections["fluids"])
+        while optimize_fluid_section(sections["fluids"]):
+            continue
+        
 
         reverse = False
         while len(sections["fluids"]["pool"]) > 0:
