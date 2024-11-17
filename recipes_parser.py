@@ -44,11 +44,51 @@ class Inventory:
             self.T_IN[resource] = len(data["-"]) # amount of recipes needing a specific resource as input
             self.IN[resource] = len(data["-"]) # same as above, but will be reduced each time a recipe is elected
 
-# class Path:
-#     def __init__(self, block1, block2):
+class Path:
+    def __init__(self, sections):
+        self._sections = tuple(sections)
+        self.resources = {"+": {}, "-": {}}
+
+    @property
+    def sections(self):
+        return self._sections
+
+    def __str__(self):
+        def key(val):
+            return (val,)
+        return '#'.join(sorted(self.sections, key=key))
+
+    def __eq__(self, other):
+        if isinstance(other, Path):
+            return str(self) == str(other)
+        return False
+
+    def __hash__(self):
+        return hash(str(self))
+
+class Section:
+    def __init__(self, name, solver, inventory):
+        self.name = name
+        self.inventory = inventory
+        self.solver = solver
+        self.blocks = []
+        self.pool = set()
+        self.volume = float('inf')
+        self.paths = {}
+        self.resources = {"+": {}, "-": {}}
+        # TODO ABD consider OUT command (for extra bins)
+        # use belts format (to be defined)
+
+    def add_recipe(self, recipe_key):
+        recipe = self.solver.recipes[recipe_key]
+        self.pool.add(recipe_key)
+        for sign in ["+", "-"]:
+            for resource, quantity in recipe.result[sign].items():
+                self.resources[sign].setdefault(resource, 0)
+                self.resources[sign] += quantity
 
 class Block:
-    def __init__(self, solver, inventory=None):
+    def __init__(self, solver, inventory):
         self.containers = OrderedSet()
         self.solver = solver
         self.inventory = inventory
@@ -56,7 +96,6 @@ class Block:
         self.MINOR_OUT = {}
         self.MAJOR_OUT = {}
         # self.available_resources = set()
-        self.recipes = set()
 
     def add_recipe(self, recipe):
         for resource in recipe.resources["-"]:
@@ -131,7 +170,7 @@ class Solver:
         self.RESET = "\033[0m"
         self.buildings, self.recipes = self.parse()
         (
-            self.output, self.power, self.resources, self.used_recipes, self.paths
+            self.output, self.power, self.resources, self.used_recipes, self.paths, self.volumes, self.assignations
         ) = self.read_instructions()
         self.A, self.A_def, self.B, self.B_def, self.X = self.solve()
         self.assign_recipe_results()
@@ -184,6 +223,8 @@ class Solver:
         output = {}
         used_recipes = {}
         paths = {}
+        volumes = {}
+        assignations = {}
 
         def register_recipe(recipe):
             used_recipes[recipe.key] = recipe
@@ -223,16 +264,30 @@ class Solver:
                 argument = argument.split("#")
                 register_transport_sizes(int(argument[0]), int(argument[1]))
 
-            def cmd_blocks(argument):
+            def cmd_sections(argument):
                 argument = argument.split("#")
-                for block in argument[1:]:
-                    register_path(argument[0], block)
+                for section in argument[1:]:
+                    register_path(argument[0], section)
+
+            def cmd_volumes(argument):
+                nonlocal volumes
+                argument = argument.split("#")
+                volumes[argument[0]] = float(argument[1])
+
+            def cmd_assignations(argument):
+                nonlocal assignations
+                argument = argument.split("#")
+                for assignation in argument[1:]:
+                    assignations.setdefault(argument[0], set())
+                    assignations[argument[0]].add(assignation)
 
             cmd = {
-                "b": cmd_blocks,
+                "a": cmd_assignations,
                 "out": cmd_out,
                 "r": cmd_recipe,
+                "s": cmd_sections,
                 "t": cmd_transport_sizes,
+                "v": cmd_volumes,
             }
             csv_reader = csv.DictReader(csv_file)
             for row in csv_reader:
@@ -241,7 +296,7 @@ class Solver:
             for recipe in self.recipes.values():
                 register_recipe(recipe)
 
-        return output, power, resources, used_recipes, paths
+        return output, power, resources, used_recipes, paths, volumes, assignations
 
     def assign_recipe_results(self):
         for i, recipe_key in enumerate(self.A_def):
@@ -257,12 +312,38 @@ class Solver:
     def working_here(self):
         recipes_sequence_map = self.recipes_rank
         resources_sequence_map = self.resources_rank
-        def prepare_recipe_sets():
+        def create_sections():
+            sections = {}
+            for section in self.paths:
+                sections[section] = Section(section, self, inventory)
+            for recipe in prepare_fluids_pool():
+                sections["fluids"].add_recipe(recipe)
+            for key, assignation in self.assignations.items():
+                sections[key].pool |= assignation
+            for key, volume in self.volumes.items():
+                sections[key].volume = volume
+            paths = {}
+            for key, links in self.paths.items():
+                for section in links:
+                    path = Path([key, section])
+                    name = str(path)
+                    if name in paths:
+                        path = paths[name]
+                    paths[name] = path
+                    sections[key].paths[name] = path
+                    sections[section].paths[name] = path
+            for key, output in self.output.items():
+                size = self.pipe if key in FLUIDS else self.belt
+                sections["out"].resources["-"][key] = abs(output) / size
+            construct_base_blocks(sections["fluids"])
+            return sections
+
+        def prepare_fluids_pool():
             fluid_recipes = set()
             for fluid in FLUIDS:
                 if fluid in self.resources:
                     fluid_recipes |= self.resources[fluid]["+"] | self.resources[fluid]["-"]
-            return set(self.used_recipes.keys()) - fluid_recipes, fluid_recipes
+            return fluid_recipes
 
         def sort_recipes(recipes):
             if len(recipes) == 0:
@@ -308,18 +389,18 @@ class Solver:
 
         def construct_base_blocks(section):
             recipes = []
-            for recipe in section["pool"]:
+            for recipe in section.pool:
                 if len(self.recipes[recipe].resources["-"]) == 0:
                     for resource in self.recipes[recipe].resources["+"]:
                         inventory.available_resources.add(resource)
                     recipes.append(self.recipes[recipe])
             recipes = sort_recipes(recipes)
             for recipe in recipes:
-                section["pool"].remove(recipe.key)
+                section.pool.remove(recipe.key)
                 inventory.pool.remove(recipe.key)
                 block = Block(self, inventory)
                 block.add_recipe(recipe)
-                section["blocks"].append(block)
+                section.blocks.append(block)
 
         def find_best_block(section, recipe, reverse = False):
             # associate with the best matching block
@@ -329,7 +410,7 @@ class Solver:
             # major matches are considered before minor matches
             result = []
             idx = 0
-            for block in section["blocks"]:
+            for block in section.blocks:
                 # match = block.available_resources & set(recipe.resources["-"].keys())
                 ingredients = set(recipe.resources["+" if reverse else "-"].keys())
                 major_match = set(block.MAJOR_OUT.keys()) & ingredients
@@ -359,7 +440,7 @@ class Solver:
                     + (val["index"],)
                 )
             result.sort(key=key)
-            block = section["blocks"][result[0]["index"]]
+            block = section.blocks[result[0]["index"]]
             return block
 
         # phase 1:
@@ -369,7 +450,7 @@ class Solver:
             # update IN and OUT values according to ingredients used in the new recipe
         def phase1(section, reverse = False):
             batch = set()
-            for recipe_key in section["pool"]:
+            for recipe_key in section.pool:
                 recipe = self.recipes[recipe_key]
                 if all(resource in inventory.available_resources for resource in recipe.resources["-"]):
                     batch.add(recipe)
@@ -380,7 +461,7 @@ class Solver:
             # add recipe to block:
                 # update IN, OUT, global current IN, global available_resources, block available_resources
             block.add_recipe(recipe)
-            section["pool"].remove(recipe.key)
+            section.pool.remove(recipe.key)
             inventory.pool.remove(recipe.key)
             # TODO ABD: niche optimization, skipping for now:
             # evaluate all fully consumed resources in the block
@@ -405,7 +486,7 @@ class Solver:
         def phase2(section):
             for i in range(1, 5):
                 batch = {}
-                for recipe_key in section["pool"]:
+                for recipe_key in section.pool:
                     recipe = self.recipes[recipe_key]
                     missing = set()
                     for resource in recipe.resources["-"]:
@@ -462,11 +543,22 @@ class Solver:
         def phase3(section):
             for external_resource in inventory.external_resources:
                 in_count = 0
-                for block in section["blocks"]:
+                for block in section.blocks:
                     in_count += block.IN.get(external_resource) or 0
                 if inventory.T_IN[external_resource] == in_count:
                     recipes = self.resources[external_resource]["+"] & inventory.pool
-                    section["pool"] |= recipes
+                    section.pool |= recipes
+
+        def optimize_fluid_section(section):
+            batch = set()
+            for recipe_key in inventory.pool:
+                recipe = self.recipes[recipe_key]
+            # compute in/out of the section (=> combine + and - and see what's left)
+            # 
+            # get an array of all recipes, sort it with criteria:
+            # from the previous computation, select recipe which removes the most belts
+                # limit only inputs ? => to not continue to craft more late tiers ?
+                # 
 
 
         # iteration:
@@ -484,20 +576,19 @@ class Solver:
                 # merge blocks, update IN and OUT recursively, ...
             # go again
 
-        normal_pool, fluid_pool = prepare_recipe_sets()
-        sections = {
-            "fluids": {
-                "pool": fluid_pool,
-                "blocks": [],
-            },
-            "others": {
-                "pool": normal_pool,
-                "blocks": [],
-            }
-        }
         inventory = Inventory(self, resources_sequence_map)
 
-        construct_base_blocks(sections["fluids"])
+        sections = create_sections()
+
+        # First phase: grep recipes and minimize path encumbrance for fluids
+            # => path encumbrance is already known from the current pool of recipes
+            # => should search for "best recipe" with an algo limiting resources on a path
+            # think about combining "remain" belts from other sections => should continue until they are fully
+            # used
+        something = True
+        while something:
+            optimize_fluid_section(sections["fluids"])
+
         reverse = False
         while len(sections["fluids"]["pool"]) > 0:
             if phase1(sections["fluids"], reverse):

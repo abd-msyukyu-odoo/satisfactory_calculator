@@ -632,8 +632,8 @@ todo in order:
 	1: 28 - 21 (approx)
 	2: 21 - 14
 	3: 14 - 0
-	5: 22 - 15
-	6: 15 - 8
+	4: 22 - 15
+	5: 15 - 8
 	output: 8 - 0 (irrelevant)
 	fluids: inf
 	
