@@ -5,7 +5,7 @@ from scipy.optimize import nnls
 from ordered_set import OrderedSet
 # from functools import reduce
 from models.building import Building
-from models.recipe import Recipe
+from models.recipe import Recipe, MARGIN
 from models.google_sheet import GoogleSheet
 
 FLUIDS = {
@@ -24,8 +24,6 @@ FLUIDS = {
     "turbofuel",
     "water",
 }
-
-MARGIN = 1/120000
 
 class Inventory:
     def __init__(self, solver, resources_sequence_map):
@@ -75,6 +73,7 @@ class Section:
         self.inventory = inventory
         self.solver = solver
         self.blocks = []
+        self.full_pool = set()
         self.pool = set()
         self.volume = float('inf')
         self.paths = {}
@@ -85,11 +84,19 @@ class Section:
     def add_recipe(self, recipe_key):
         recipe = self.solver.recipes[recipe_key]
         self.pool.add(recipe_key)
+        self.full_pool.add(recipe_key)
         self.inventory.pool.remove(recipe_key)
         for sign in ["+", "-"]:
             for resource, quantity in recipe.lanes[sign].items():
                 self.lanes[sign].setdefault(resource, 0)
                 self.lanes[sign][resource] += quantity
+
+    def compute_current_volume(self):
+        volume = 0
+        for recipe_key in self.full_pool:
+            recipe = self.solver.recipes[recipe_key]
+            volume += recipe.compute_virtual_volume()
+        return volume
 
     def compute_state(self):
         resources = {}
@@ -380,6 +387,7 @@ class Solver:
                 size = self.pipe if key in FLUIDS else self.belt
                 sections["out"].lanes["-"][key] = abs(output) / size
             construct_base_blocks(sections["fluids"])
+            construct_base_blocks(sections["in"])
             return sections
 
         def prepare_fluids_pool():
@@ -615,21 +623,44 @@ class Solver:
                 for resource in max_output_resources:
                     if resource not in consumed:
                         continue
-                    if recipe.lanes["+"][resource] <= section.lanes["-"][resource] + MARGIN:
+                    size = self.pipe if resource in FLUIDS else self.belt
+                    output = self.output.get(resource, 0) / size
+                    if recipe.lanes["+"][resource] <= section.lanes["-"][resource] + MARGIN + output:
                         enclosed_recipes.add(recipe.key)
             if len(enclosed_recipes) != 0:
                 for recipe_key in enclosed_recipes:
                     section.add_recipe(recipe_key)
                 # return to get other enclosed_recipes
                 return True
-            def compute_recipe_effect(recipe_key):
-                return section.get_recipe_effect(recipe_key)
-            recipes = list(filter(lambda recipe: compute_recipe_effect(recipe) > 0, batch))
+            recipes = list(filter(lambda recipe: section.get_recipe_effect(recipe) > 0, batch))
             if len(recipes) != 0:
                 for recipe_key in recipes:
                     section.add_recipe(recipe_key)
                 return True
             return False
+
+        def optimize_volume_section(section):
+            batch = list(filter(lambda recipe_key: (
+                self.recipes[recipe_key].compute_virtual_volume()
+                + section.compute_current_volume()
+                <= section.volume
+            ), inventory.pool))
+            if len(batch) == 0:
+                return False
+            def key(recipe_key):
+                recipe = self.recipes[recipe_key]
+                def used_to_create_things(recipe):
+                    count = 0
+                    for resource in recipe.resources["+"]:
+                        count += inventory.T_IN[resource]
+                    return count
+                def get_tier(recipe):
+                    return recipes_sequence_map[recipe.key]
+                return (-section.get_recipe_effect(recipe_key), used_to_create_things(recipe), -get_tier(recipe), recipe_key)
+            batch.sort(key=key)
+            recipe_key = batch[0]
+            section.add_recipe(recipe_key)
+            return True
 
 
         # iteration:
@@ -658,65 +689,57 @@ class Solver:
             # used
         while optimize_fluid_section(sections["fluids"]):
             continue
-        
 
-        reverse = False
-        while len(sections["fluids"]["pool"]) > 0:
-            if phase1(sections["fluids"], reverse):
-                if len(sections["fluids"]["pool"]) == 0:
-                    reverse = True
-                    phase3(sections["fluids"]) # phase3 could also be done right after phase2
-                                               # but then reverse mode would have to be stored in another way
+        while len(sections["fluids"].pool) > 0:
+            if phase1(sections["fluids"]):
                 continue
             elif phase2(sections["fluids"]):
                 continue
             else:
                 raise Exception("Unable to use a recipe in fluids")
 
-        # TODO recursively add fully used resources in the fluids section
-        # search for resources fully used in the fluids section
-        # import all recipes creating these resources
-            # do the same recursively for their ingredients until
-                # they are not fully used (=> just inputs, phase2)
-                # they are fully used (=> import recipe in the same block, repeat for ingredients)
-        # eliminate resources added through phase2 from inventory.available_resources
-        inventory.available_resources -= inventory.external_resources
-        inventory.external_resources = set()
+        path = list(set(self.volumes.keys()) - set(["in"]))
+        path.sort()
+        path = ["in"] + path
 
-        sections["others"]["pool"] &= inventory.pool # some recipes could have ben extracted in reverse by fluids section
-        construct_base_blocks(sections["others"])
-        # create OUT set for the fluid section
-        # create a block for each OUT
-        fluid_resources = set()
-        for block in sections["fluids"]["blocks"]:
-            fluid_resources |= set(block.MAJOR_OUT.keys()) | set(block.MINOR_OUT.keys())
-        fluid_resources -= FLUIDS
-        fluid_resources = list(fluid_resources)
-        fluid_resources.sort(key=lambda val: resources_sequence_map[val])
-        for fluid_resource in fluid_resources:
-            block = Block(self, inventory)
-            block.MAJOR_OUT[fluid_resource] = 1
-            sections["others"]["blocks"].append(block)
-
-        # fluid_block = Block(self, inventory)
-        # for block in sections["fluids"]["blocks"]:
-        #     fluid_block.add_block(block, as_container=False)
-        # sections["others"]["blocks"].append(fluid_block)
-        while len(sections["others"]["pool"]):
-            if phase1(sections["others"]):
+        # TODO ABD: consider states of other sections when choosing recipes for
+        # one section => weight distance for accessibility
+        # having the neighbour providing lanes should be taken into consideration
+        # when consuming lanes => compute a neighbour lanes state
+        # get_recipe_effect should take into account the "neighbour lanes state"
+        # incorporate weights into the formula so that taking a resource from a far
+        # neighbour is more expensive, but still better than taking a lane that is not
+        # already present at all (scale lanes at lanes/distance ?)
+        # provide an array of states to `get_recipe_effect`, all states have a distance
+        # metadata to scale them => need dijkstra => will change which recipe is chosen
+        # => will fully consider direct neighbour lanes as its own => +++ better results
+        for section_key in path:
+            section = sections[section_key]
+            inventory.available_resources -= inventory.external_resources
+            inventory.external_resources = set()
+            section_resources = set()
+            for block in section.blocks:
+                section_resources |= set(block.MAJOR_OUT.keys())
+            available_resources = list(inventory.available_resources - section_resources - FLUIDS)
+            available_resources.sort(key=lambda val: resources_sequence_map[val])
+            for resource in available_resources:
+                block = Block(self, inventory)
+                block.MAJOR_OUT[resource] = 1
+                section.blocks.append(block)
+            while optimize_volume_section(section):
                 continue
-            elif phase2(sections["others"]):
-                continue
-            else:
-                raise Exception("Unable to use a recipe in others")
-        blocks = []
-        for block in sections["others"]["blocks"]:
-            if len(block.containers) > 0:
-                blocks.append(block)
-        sections["others"]["blocks"] = blocks
-        # TODO clean all blocks with 1-2 container IF they are consumed ? not really necessary
-
-        # TODO return ordered recipes following blocks
+            while len(section.pool) > 0:
+                if phase1(section):
+                    continue
+                elif phase2(section):
+                    continue
+                else:
+                    raise Exception("Unable to use a recipe in volume section")
+            blocks = []
+            for block in section.blocks:
+                if len(block.containers) > 0:
+                    blocks.append(block)
+            section.blocks = blocks
         return None
 
     def compute_sequences(self):
