@@ -669,6 +669,12 @@ I actually need assignations for every quantity, and that would also help the be
 
 => do assignations at the end of the algo instead, once every recipe was allocated
 
-
+=> for each known resource:
+	- identify the smallest + -> fully consume it in the closest - and continue until fully exhausted
+		- identify the next smallest - -> fully consume 
+		=> fill paths with all these interactions
+			-> for the path natural direction, use the alphabetical order, then alter signs relative to that
+	=> once all paths are filled => convert to lanes (orientation => depends on name)
+	
 ```
 
