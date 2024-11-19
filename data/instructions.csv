@@ -7,11 +7,11 @@ s,1#2#in
 s,2#1
 s,3#4#in
 s,4#3#out
-v,in#860160
-v,1#438682
-v,2#137984
-v,3#490292
-v,4#165581
+v,in#967680
+v,1#493517
+v,2#177408
+v,3#490291
+v,4#189235
 a,2#nuclear pasta
 out,nuclear pasta#1
 out,iodine-infused filter#1

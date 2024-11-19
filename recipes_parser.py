@@ -2,6 +2,7 @@ import csv
 import numpy as np
 import math
 from scipy.optimize import nnls
+from scipy.sparse.csgraph import dijkstra
 from ordered_set import OrderedSet
 # from functools import reduce
 from models.building import Building
@@ -122,20 +123,133 @@ class Section:
                 lanes += amount
                 external_lanes["+"][resource] = amount
         return lanes, external_lanes
-    
+
+    @staticmethod
+    def combine_states(resources1, resources2):
+        resources = {}
+        keys1 = set(resources1.keys())
+        keys2 = set(resources2.keys())
+        for key in keys1 | keys2:
+            resources[key] = resources1.get(key, 0) + resources2.get(key, 0)
+        return resources
+
     def get_external_lanes(self):
         return Section.get_lanes(self.compute_state())
 
-    def get_recipe_effect(self, recipe_key):
+    def get_recipe_effect(self, recipe_key, distance_data=None):
+        # TODO issue: each section state is evaluated as if untouched by other section states
+        # maybe a section usage of another should be reflected in that other section so that
+        # when it is reused, it is not re-used for the same things ? maybe it's a non-issue
+        def get_sections(distance):
+            if not distance_data:
+                return [], 0
+            index = distance_data["name_to_index"][self.name]
+            max_distance = 0
+            sections = []
+            for name, section in distance_data["sections"].items():
+                sub_index = distance_data["name_to_index"][name]
+                cur_dist = distance_data["distances"][index][sub_index]
+                if distance == cur_dist:
+                    sections.append(section)
+                if cur_dist > max_distance:
+                    max_distance = cur_dist
+            return sections, max_distance
         resources = self.compute_state()
-        recipe = self.solver.recipes[recipe_key]
+        sections, _ = get_sections(1) # max_distance
+        for section in sections:
+            state = section.compute_state()
+            resources = Section.combine_states(resources, state)
         lanes_before, _ = Section.get_lanes(resources)
+        recipe = self.solver.recipes[recipe_key]
+        # delta = 0
         for resource, quantity in recipe.lanes["+"].items():
             resources.setdefault(resource, 0)
+            # TODO commented code is wrong, delete it, do better algo (below)
+            # if quantity + resources[resource] > MARGIN:
+            #     original_lanes_count = math.ceil(abs(resources[resource]) - MARGIN)
+            #     exchange_value = resources[resource] + quantity
+            #     current = exchange_value
+            #     intermediate_value = 0
+            #     for i in range(2, max_distance):
+            #         sections, _ = get_sections(i)
+            #         for section in sections:
+            #             state = section.compute_state()
+            #             state_qty = state.get(resource, 0)
+            #             if state_qty + MARGIN < 0:
+            #                 iter_qty = min(quantity - intermediate_value, abs(state_qty))
+            #                 current -= iter_qty
+            #                 intermediate_value += iter_qty
+            #             if current - MARGIN < resources[resource]:
+            #                 break
+            #         boosted_lanes_count = math.ceil(abs(current - intermediate_value) - MARGIN)
+
             resources[resource] += quantity
+            # same logic as below, reversed, if there are consumptions at a certain floor
+            # add that consumption to resources, and register a penalty depending on the
+            # distance
         for resource, quantity in recipe.lanes["-"].items():
             resources.setdefault(resource, 0)
+            # TODO commented code is wrong, delete it, do better algo (below)
+            # if resources[resource] + MARGIN < quantity:
+            #     original_lanes_count = math.ceil(abs(resources[resource]) - MARGIN)
+            #     exchange_value = resources[resource] - quantity
+            #     current = exchange_value
+            #     intermediate_value = 0
+            #     # cost of the recipe, is to bring back enough belts
+            #     # to recover the resources[resource] state
+            #     # taking into acount that existing belts can be filled to the max
+            #     for i in range(2, max_distance):
+            #         sections, _ = get_sections(i)
+            #         for section in sections:
+            #             state = section.compute_state()
+            #             state_qty = state.get(resource, 0)
+            #             if state_qty - MARGIN > 0:
+            #                 iter_qty = min(quantity - intermediate_value, state_qty)
+            #                 current += iter_qty
+            #                 intermediate_value += iter_qty
+            #             if current + MARGIN > resources[resource]:
+            #                 break
+            #         boosted_lanes_count = math.ceil(abs(resources[resource] + intermediate_value) - MARGIN)
+            #         # TODO READ THIS
+            #         # being able to bring belts from a distance should reduce the impact of
+            #         # having to bring these belts without knowing where they are ???
+            #         # this will incentivize to use already known ingredients :/
+            #         # actually isn't that enough to only consider "sibling" provisions as a priority ?
+            #         # when going away from a source, it is interesting to offer the boost
+            #         # when going towards it is not.
+            #         delta -= (boosted_lanes_count - original_lanes_count) * (1 - 1 / i)
+            #         original_lanes_count = boosted_lanes_count
+            #         if current + MARGIN > resources[resource]:
+            #             break
             resources[resource] -= quantity
+            
+            
+            # better algo:
+            #   each prod at each level has multiple assignation slots
+            #   state in that section is updated once a prod is consumed for
+            #   somewhere (i.e. amount - floor+ -> floor-)
+            # assignations are combined to the internal state of a section
+            # assignations will deplete a state until it is fully resolved
+            # assignations can be combined together on each path to check
+            # the belts attribution (assignations of the same item on one path
+            # can be combined to minimize amount of belts)
+            # ??? TODO
+
+                    
+            # here we should check all neighbours in order of distance
+            # and compute a correction factor which will represent
+            # the distance penalty for choosing that neighbour
+            # no neighbour found => no correction penalty 
+            # all provided by current section or a direct neighbour
+            # => no correction penalty
+            # distance 2+: ceil amount of belts rated as a penalty of the distance,
+            # every time the amount of belts increase at a further distance, add the
+            # new belt with the penalty of that distance
+            # lanes_after should be increased by the distance penalty
+            # lanes_after can be computed the same as before, once every neighbours
+            # only selected resources for the current recipe are shared on the current floor
+            # resources are shared on the current floor, and increased by the penalty
+            # lanes_before should stay the same 
         lanes_after, _ = Section.get_lanes(resources)
         return lanes_before - lanes_after
 
@@ -591,16 +705,6 @@ class Solver:
                 inventory.external_resources |= missing
                 return recipe.key
             return None
-        
-        def phase3(section):
-            return False
-            # for external_resource in inventory.external_resources:
-            #     in_count = 0
-            #     for block in section.blocks:
-            #         in_count += block.IN.get(external_resource) or 0
-            #     if inventory.T_IN[external_resource] == in_count:
-            #         recipes = self.resources[external_resource]["+"] & inventory.pool
-            #         section.pool |= recipes
 
         def optimize_fluid_section(section):
             # filter recipes that produce at least one ingredient that is
@@ -639,7 +743,7 @@ class Solver:
                 return True
             return False
 
-        def optimize_volume_section(section):
+        def optimize_volume_section(section, distance_data):
             batch = list(filter(lambda recipe_key: (
                 self.recipes[recipe_key].compute_virtual_volume()
                 + section.compute_current_volume()
@@ -656,7 +760,7 @@ class Solver:
                     return count
                 def get_tier(recipe):
                     return recipes_sequence_map[recipe.key]
-                return (-section.get_recipe_effect(recipe_key), used_to_create_things(recipe), -get_tier(recipe), recipe_key)
+                return (-section.get_recipe_effect(recipe_key, distance_data), used_to_create_things(recipe), -get_tier(recipe), recipe_key)
             batch.sort(key=key)
             recipe_key = batch[0]
             section.add_recipe(recipe_key)
@@ -702,6 +806,29 @@ class Solver:
         path.sort()
         path = ["in"] + path
 
+        section_names = list(self.paths.keys())
+        section_names.sort()
+        section_path_graph = []
+        for name1 in section_names:
+            distances = []
+            for name2 in section_names:
+                if name2 in self.paths[name1] and name2 != name1:
+                    distances.append(1)
+                else:
+                    distances.append(0)
+            section_path_graph.append(distances)
+        name_to_index = {}
+        for i, name in enumerate(section_names):
+            name_to_index[name] = i
+        distances, predecessors = dijkstra(section_path_graph, directed=False, return_predecessors=True)
+        distance_data = {
+            "distances": distances,
+            "predecessors": predecessors,
+            "name_to_index": name_to_index,
+            "sections": sections,
+        }
+
+
         # TODO ABD: consider states of other sections when choosing recipes for
         # one section => weight distance for accessibility
         # having the neighbour providing lanes should be taken into consideration
@@ -726,7 +853,7 @@ class Solver:
                 block = Block(self, inventory)
                 block.MAJOR_OUT[resource] = 1
                 section.blocks.append(block)
-            while optimize_volume_section(section):
+            while optimize_volume_section(section, distance_data):
                 continue
             while len(section.pool) > 0:
                 if phase1(section):
@@ -740,6 +867,8 @@ class Solver:
                 if len(block.containers) > 0:
                     blocks.append(block)
             section.blocks = blocks
+        if len(inventory.pool):
+            raise Exception("inventory pool is not empty, missing recipes")
         return None
 
     def compute_sequences(self):

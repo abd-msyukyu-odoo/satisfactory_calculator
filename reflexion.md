@@ -638,5 +638,37 @@ todo in order:
 	fluids: inf
 	
 1-2, 1-5 | 2-3 2-1 | 3-4 3-2 | 4-3 | 5-6 5-1 | 6-output 6-5 | output-fluids output-6 | fluids-output
+
+
+need to keep track of which lane is used and from where it came from
+	-> meaning that we should also choose lanes that are closer first and then others
+		=> self.lanes already exist => create a function which will weight all lanes accordingly
+		
+get_lanes computation must be complexified
+
+-> get_recipe_effect can get the list of all sections having something to contribute
+	-> therefore it is easy to get the distance compared to the current section using the dijkstra result
+	-> recipe.lanes["+"] is weighted as from the current floor
+	-> recipe.lanes["-"] must be related to an existing lane["+"] which will be taken into account in the residual amount of lanes ?
+	=> therefore counting lanes is done at the same time as counting resources
+	=> we are also not really counting "lanes", but a score now
+```
+
+```
+each section knows its external lanes individually, but some external lanes can be recombined with external lanes of neighbours, etc
+-> external lanes is a useless metric, because it could have to be split between every path depending on the situation
+
+I actually need assignations for every quantity, and that would also help the better recipe algo
+
+=> if possible, take a resource from the closest section which provides any amount
+=> if possible, provide a resource to the closest section which needs any amount
+
+=> register these quantities along paths
+=> paths DO NOT merge + and - quantities
+=> what if a later better provider appear ? => assignations would have to be "simplified"
+
+=> do assignations at the end of the algo instead, once every recipe was allocated
+
+
 ```
 
