@@ -49,6 +49,7 @@ class Inventory:
 class Path:
     def __init__(self, sections):
         self._sections = tuple(sections)
+        self.state = {}
         self.lanes = {"+": {}, "-": {}}
 
     @property
@@ -107,6 +108,13 @@ class Section:
             resources[resource] += quantity
         for resource, quantity in self.lanes["-"].items():
             resources[resource] -= quantity
+        def null_equivalent(value):
+            return (
+                (value == 0)
+                or (value < 0 and value > 0 - MARGIN)
+                or (value > 0 and value < 0 + MARGIN)
+            )
+        resources = {resource: quantity for resource, quantity in resources.items() if not null_equivalent(quantity)}
         return resources
 
     @staticmethod
@@ -497,6 +505,7 @@ class Solver:
                     paths[name] = path
                     sections[key].paths[name] = path
                     sections[section].paths[name] = path
+            self.path_objs = paths
             for key, output in self.output.items():
                 size = self.pipe if key in FLUIDS else self.belt
                 sections["out"].lanes["-"][key] = abs(output) / size
@@ -825,6 +834,7 @@ class Solver:
             "distances": distances,
             "predecessors": predecessors,
             "name_to_index": name_to_index,
+            "index_to_name": section_names,
             "sections": sections,
         }
 
@@ -869,6 +879,75 @@ class Solver:
             section.blocks = blocks
         if len(inventory.pool):
             raise Exception("inventory pool is not empty, missing recipes")
+        states = {}
+        for name, section in sections.items():
+            states[name] = section.compute_state()
+        for name, state in states.items():
+            index = distance_data["name_to_index"][name]
+            for resource, quantity in state.items():
+                if quantity == 0:
+                    continue
+                targets = {}
+                for key, target in states.items():
+                    if key == name:
+                        continue
+                    if quantity * target.get(resource, 0) < 0:
+                        targets[key] = target
+                distances = []
+                for key, target in targets.items():
+                    sub_index = distance_data["name_to_index"][key]
+                    dist = distance_data["distances"][index][sub_index]
+                    name_path = [name]
+                    path_objs = []
+                    current = name
+                    while current != key:
+                        prev = current
+                        idx = distance_data["name_to_index"][current]
+                        cur_idx = distance_data["predecessors"][sub_index][idx]
+                        current = distance_data["index_to_name"][cur_idx]
+                        path = Path([prev, current])
+                        path = self.path_objs[str(path)]
+                        name_path.append(current)
+                        path_objs.append(path)
+                    distances.append({
+                        "section_name": name,
+                        "target_name": key,
+                        "distance": dist,
+                        "name_path": name_path,
+                        "path_objs": path_objs,
+                    })
+                def sort_dist(val):
+                    return (val["distance"], val["section_name"])
+                distances.sort(key=sort_dist)
+                for dist in distances:
+                    val1 = states[dist["section_name"]][resource]
+                    val2 = states[dist["target_name"]][resource]
+                    transport = min(abs(val1), abs(val2))
+                    sign = -1 if val1 < 0 else 1
+                    for i, path_obj in enumerate(dist["path_objs"]):
+                        subsign = 1
+                        if not str(path_obj).startswith(dist["name_path"][i]):
+                            subsign = sign * -1
+                        path_obj.state.setdefault(resource, 0)
+                        path_obj.state[resource] += subsign * transport
+                    sign = -1 if val1 < 0 else 1
+                    states[dist["section_name"]][resource] = sign * (abs(val1) - transport)
+                    if (abs(states[dist["section_name"]][resource]) - MARGIN < 0):
+                        states[dist["section_name"]][resource] = 0
+                    sign = -1 if val2 < 0 else 1
+                    states[dist["target_name"]][resource] = sign * (abs(val2) - transport)
+                    if (abs(states[dist["target_name"]][resource]) - MARGIN < 0):
+                        states[dist["target_name"]][resource] = 0
+                    # identify transport value (= min abs() of both values)
+                    # identify sign (from first name_path to last name_path, *-1 if
+                    # first name is negative, *-1 if a path_obj key is not in the
+                    # order of name_path, apply resource on each path in path_objs (should be a state)
+                    # min value is set to zero, max value is reduced of min value in each state
+                    # => each path should be filled with a full state
+                    # => can get lanes for each path afterwards
+                    # => just need to ordinate them
+        for path_obj in self.path_objs.values():
+            path_obj.lanes = Section.get_lanes(path_obj.state)
         return None
 
     def compute_sequences(self):
