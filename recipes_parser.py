@@ -917,7 +917,7 @@ class Solver:
                         "path_objs": path_objs,
                     })
                 def sort_dist(val):
-                    return (val["distance"], val["section_name"])
+                    return (val["distance"], val["target_name"])
                 distances.sort(key=sort_dist)
                 for dist in distances:
                     val1 = states[dist["section_name"]][resource]
@@ -925,19 +925,20 @@ class Solver:
                     transport = min(abs(val1), abs(val2))
                     sign = -1 if val1 < 0 else 1
                     for i, path_obj in enumerate(dist["path_objs"]):
-                        subsign = 1
-                        if not str(path_obj).startswith(dist["name_path"][i]):
-                            subsign = sign * -1
+                        subsign = sign
+                        if str(path_obj).split("#", maxsplit=1)[0] != dist["name_path"][i]:
+                            subsign *= -1
                         path_obj.state.setdefault(resource, 0)
                         path_obj.state[resource] += subsign * transport
-                    sign = -1 if val1 < 0 else 1
-                    states[dist["section_name"]][resource] = sign * (abs(val1) - transport)
-                    if (abs(states[dist["section_name"]][resource]) - MARGIN < 0):
-                        states[dist["section_name"]][resource] = 0
                     sign = -1 if val2 < 0 else 1
                     states[dist["target_name"]][resource] = sign * (abs(val2) - transport)
                     if (abs(states[dist["target_name"]][resource]) - MARGIN < 0):
                         states[dist["target_name"]][resource] = 0
+                    sign = -1 if val1 < 0 else 1
+                    states[dist["section_name"]][resource] = sign * (abs(val1) - transport)
+                    if (abs(states[dist["section_name"]][resource]) - MARGIN < 0):
+                        states[dist["section_name"]][resource] = 0
+                        break
                     # identify transport value (= min abs() of both values)
                     # identify sign (from first name_path to last name_path, *-1 if
                     # first name is negative, *-1 if a path_obj key is not in the
