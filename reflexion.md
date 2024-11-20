@@ -680,6 +680,14 @@ I actually need assignations for every quantity, and that would also help the be
 
 ```
 32 max lanes at once :D
+-> define heuristic to populate belts
 
+-> start with fluids actually
+
+=> ideal situation would be unwrapping:
+	-> circular = onion
+	-> lanes stack = "turn right"
+
+=> separate "IN" and "OUT" busses ? -> I have enough lanes for that
 ```
 
