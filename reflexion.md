@@ -691,3 +691,39 @@ I actually need assignations for every quantity, and that would also help the be
 => separate "IN" and "OUT" busses ? -> I have enough lanes for that
 ```
 
+```
+main_group:
+	(INTERSECTION path section1) UNION (INTERSECTION path section2)
+second_group:
+	rest
+-> do that for all paths
+second pass:
+	(INTERSECTION curPath(second) previousPath(main)) UNION (INTERSECTION curPath(second) nextPath(main))
+		-> one intersection per path at distance 1, union all
+third pass:
+		-> one intersection per path at distance 2, union all
+			-> combine current Nth group with main group at distance N
+=> until there is no resource left to handle in a path
+
+then, for each N level, divide in 2 (+ and -) => already the case, keep division => "+" are interchangeable with "-" depending on the orientation of each path and the direction of travel (like before)
+
+for a lane of successive recipes, it's the same: create paths between recipes, section = recipe yadayada...
+	-> follow intra ordering, then N ordering according to any scheme and voila
+
+```
+
+```
+sections:
+- divide by section, divide by blocks (vertically) -> horizontally: recipe, machine name, quantity, resource name > amount of belts
+
+paths:
+- for each path, divide by +- horizontally (+ resources), divide by group layers (vertically) => amount of belts
+
+	-> construction process = outer => lowest layer, fill up
+								=> can continue to fill outer with higher layers untill all is consumed
+	-> fill innermost layers first
+	-> only fill outermost layer for the next section
+		-> issue is when adding more items to the innermost layers
+			-> review the design of the tower to allow easy manipulations
+```
+

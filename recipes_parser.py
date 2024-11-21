@@ -26,6 +26,13 @@ FLUIDS = {
     "water",
 }
 
+CONTRARY = {
+    "+": "-",
+    "-": "+",
+    "0": "1",
+    "1": "0",
+}
+
 class Inventory:
     def __init__(self, solver, resources_sequence_map):
         self.resources_sequence_map = resources_sequence_map
@@ -48,18 +55,20 @@ class Inventory:
 
 class Path:
     def __init__(self, sections):
-        self._sections = tuple(sections)
+        def key(val):
+            return (val,)
+        self._sections = tuple(sorted(sections, key=key))
         self.state = {}
         self.lanes = {"+": {}, "-": {}}
+        self.lanes_count = 0
+        self.layers = {}
 
     @property
     def sections(self):
         return self._sections
 
     def __str__(self):
-        def key(val):
-            return (val,)
-        return '#'.join(sorted(self.sections, key=key))
+        return '#'.join(self.sections)
 
     def __eq__(self, other):
         if isinstance(other, Path):
@@ -948,7 +957,58 @@ class Solver:
                     # => can get lanes for each path afterwards
                     # => just need to ordinate them
         for path_obj in self.path_objs.values():
-            path_obj.lanes = Section.get_lanes(path_obj.state)
+            path_obj.lanes_count, path_obj.lanes = Section.get_lanes(path_obj.state)
+        for path in self.path_objs.values():
+            path.layers["1"] = {"+": {}, "-": {}}
+            path.layers["pool"] = {"+": {}, "-": {}}
+            _, lanes1 = sections[path.sections[0]].get_external_lanes()
+            _, lanes2 = sections[path.sections[1]].get_external_lanes()
+            for sign in ["+", "-"]:
+                path_resources = set(path.lanes[sign].keys())
+                resources = (
+                    (
+                        path_resources & set(lanes1[sign].keys())
+                    ) | (
+                        path_resources & set(lanes2[CONTRARY[sign]].keys())
+                    )
+                )
+                for resource in resources:
+                    path.layers["1"][sign][resource] = path.lanes[sign][resource]
+                resources = path_resources - resources
+                for resource in resources:
+                    path.layers["pool"][sign][resource] = path.lanes[sign][resource]
+        for path in self.path_objs.values():
+            paths = set([path])
+            # key of directions is the index of the section in the next path that should
+            # be the section registered in the list. if it is not, the path is reversed
+            # compared to the main path direction
+            directions = {"1": [sections[path.sections[0]]], "0": [sections[path.sections[1]]]}
+            layer = 1
+            while len(path.layers["pool"]["+"]) > 0 or len(path.layers["pool"]["-"]) > 0:
+                layer += 1
+                path.layers[str(layer)] = {"+": {}, "-": {}}
+                # in each direction, search the sections for a path that is not yet known
+                # "forward"
+                new_directions = {"1": [], "0": []}
+                for index in ["0", "1"]:
+                    for section in directions[index]:
+                        for new_path in section.paths.values():
+                            if new_path in paths:
+                                continue
+                            paths.add(new_path)
+                            section_name = new_path.sections[int(index)]
+                            contrary = section_name != section.name
+                            if not contrary:
+                                section_name = new_path.sections[int(CONTRARY[index])]
+                            new_directions[index].append(sections[section_name])
+                            for sign in ["+", "-"]:
+                                new_sign = CONTRARY[sign] if contrary else sign
+                                resources = set(path.layers["pool"][sign].keys()) & set(new_path.layers["1"][new_sign].keys())
+                                for resource in resources:
+                                    path.layers[str(layer)][sign][resource] = path.layers["pool"][sign][resource]
+                                    del path.layers["pool"][sign][resource]
+                directions = new_directions
+            del path.layers["pool"]
         return None
 
     def compute_sequences(self):
