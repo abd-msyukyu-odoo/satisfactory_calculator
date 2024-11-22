@@ -727,3 +727,35 @@ paths:
 			-> review the design of the tower to allow easy manipulations
 ```
 
+```
+sort ingredients into 3 lists for each section
+-> pure input
+-> output as input
+-> pure output
+=> actually only 2 are needed, and the output as input will be used during construction
+
+essentially:
+	-> go through each recipe in order of block-recipe
+		-> add every new ingredient in a set and a list for inputs
+		-> add every new ingredient in a set and a list for outputs
+		=> only pick ingredients that are in the final state of a section
+		
+now each section has an ordering for ingredients in + and in - and overall
+	-> overall is good? for display
+	
+=> need ordering by layer in paths
+	=> ordering for a layer depends on the sign and the section related to that sign ("+") = second section "-" first section "+", ("-") = first section "-" second section "+"
+		=> the ordering has to be done while going through sections
+		
+=> follow section ordering (section_names?)
+
+
+=> keeping a constant order means that resources have to wave around ? => not really, I can always adapt myself
+=> if they have a constant order, one affiliated resource will always be affiliated with the same group, which is what is needed
+=> if not that, a resource can switch between groups 
+	=> it can also happen even with constant order, because once a group is finished
+	
+
+=> issue: outputs don't come from a recipe, so there is no order
+```
+

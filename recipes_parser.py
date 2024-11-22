@@ -89,6 +89,7 @@ class Section:
         self.volume = float('inf')
         self.paths = {}
         self.lanes = {"+": {}, "-": {}}
+        self.resources = {"+": OrderedSet(), "-": OrderedSet(), "pool": OrderedSet()}
         # TODO ABD consider OUT command (for extra bins)
         # use belts format (to be defined)
 
@@ -302,6 +303,7 @@ class Block:
         self.inventory.external_resources -= set(recipe.resources["+"].keys())
         self.containers.add(recipe.key)
 
+    # TODO dead code ?
     def add_block(self, block, as_container=True):
         for resource in block.IN:
             self.IN.setdefault(resource, 0)
@@ -515,9 +517,14 @@ class Solver:
                     sections[key].paths[name] = path
                     sections[section].paths[name] = path
             self.path_objs = paths
-            for key, output in self.output.items():
+            output_keys = list(self.output.keys())
+            output_keys.sort(key=lambda val: (resources_sequence_map[val], val))
+            for key in output_keys:
+                output = self.output[key]
                 size = self.pipe if key in FLUIDS else self.belt
                 sections["out"].lanes["-"][key] = abs(output) / size
+                sections["out"].resources["-"].add(key)
+                sections["out"].resources["pool"].add(key)
             construct_base_blocks(sections["fluids"])
             construct_base_blocks(sections["in"])
             return sections
@@ -826,6 +833,7 @@ class Solver:
 
         section_names = list(self.paths.keys())
         section_names.sort()
+        section_names = OrderedSet(section_names)
         section_path_graph = []
         for name1 in section_names:
             distances = []
@@ -859,6 +867,8 @@ class Solver:
         # provide an array of states to `get_recipe_effect`, all states have a distance
         # metadata to scale them => need dijkstra => will change which recipe is chosen
         # => will fully consider direct neighbour lanes as its own => +++ better results
+
+        # fill sections with recipes
         for section_key in path:
             section = sections[section_key]
             inventory.available_resources -= inventory.external_resources
@@ -888,6 +898,16 @@ class Solver:
             section.blocks = blocks
         if len(inventory.pool):
             raise Exception("inventory pool is not empty, missing recipes")
+        # define ordering of ingredients for each section
+        for section in sections.values():
+            for block in section.blocks:
+                for recipe_key in block.containers:
+                    recipe = self.recipes[recipe_key]
+                    for sign in ["-", "+"]:
+                        for resource in recipe.resources[sign].keys():
+                            section.resources["pool"].add(resource)
+                            section.resources[sign].add(resource)
+        # fill paths with resources
         states = {}
         for name, section in sections.items():
             states[name] = section.compute_state()
@@ -956,22 +976,33 @@ class Solver:
                     # => each path should be filled with a full state
                     # => can get lanes for each path afterwards
                     # => just need to ordinate them
+        # group path resources by layer (a layer contain the resources needed for the sections connected by
+        # the path), next layer contains resources needed at a distance away relative to the layer level
         for path_obj in self.path_objs.values():
             path_obj.lanes_count, path_obj.lanes = Section.get_lanes(path_obj.state)
         for path in self.path_objs.values():
-            path.layers["1"] = {"+": {}, "-": {}}
+            path.layers["1"] = {"+": {}, "-": {}, "resources": {"+": OrderedSet(), "-": OrderedSet()}}
             path.layers["pool"] = {"+": {}, "-": {}}
-            _, lanes1 = sections[path.sections[0]].get_external_lanes()
-            _, lanes2 = sections[path.sections[1]].get_external_lanes()
+            section1 = sections[path.sections[0]]
+            section2 = sections[path.sections[1]]
+            _, lanes1 = section1.get_external_lanes()
+            _, lanes2 = section2.get_external_lanes()
             for sign in ["+", "-"]:
                 path_resources = set(path.lanes[sign].keys())
-                resources = (
-                    (
-                        path_resources & set(lanes1[sign].keys())
-                    ) | (
-                        path_resources & set(lanes2[CONTRARY[sign]].keys())
-                    )
-                )
+                resources1 = path_resources & set(lanes1[sign].keys())
+                order1 = section1.resources[sign] & resources1
+                resources2 = path_resources & set(lanes2[CONTRARY[sign]].keys())
+                order2 = section2.resources[CONTRARY[sign]] & resources2
+                # TODO remove exception, was just for debugging
+                if order2 != resources2 or order1 != resources1:
+                    raise Exception("error in reasoning, order should always be equal to resources (1)")
+                orders = {section1.name: order1, section2.name: order2}
+                names = section_names & set(orders.keys())
+                final_order = OrderedSet()
+                for name in names:
+                    final_order |= orders[name]
+                path.layers["1"]["resources"][sign] = final_order
+                resources = resources1 | resources2
                 for resource in resources:
                     path.layers["1"][sign][resource] = path.lanes[sign][resource]
                 resources = path_resources - resources
@@ -986,10 +1017,10 @@ class Solver:
             layer = 1
             while len(path.layers["pool"]["+"]) > 0 or len(path.layers["pool"]["-"]) > 0:
                 layer += 1
-                path.layers[str(layer)] = {"+": {}, "-": {}}
+                path.layers[str(layer)] = {"+": {}, "-": {}, "resources": {"+": OrderedSet(), "-": OrderedSet()}}
                 # in each direction, search the sections for a path that is not yet known
-                # "forward"
                 new_directions = {"1": [], "0": []}
+                ordered_resources_by_section_name = {"+": {}, "-": {}}
                 for index in ["0", "1"]:
                     for section in directions[index]:
                         for new_path in section.paths.values():
@@ -1000,13 +1031,27 @@ class Solver:
                             contrary = section_name != section.name
                             if not contrary:
                                 section_name = new_path.sections[int(CONTRARY[index])]
-                            new_directions[index].append(sections[section_name])
+                            new_section = sections[section_name]
+                            new_directions[index].append(new_section)
                             for sign in ["+", "-"]:
                                 new_sign = CONTRARY[sign] if contrary else sign
+                                # can get order from new_path here
+                                # must associate section_name with new_path ordered resources for both signs
+                                # at the end, for both sign, go through section names in order and aggregates resources
                                 resources = set(path.layers["pool"][sign].keys()) & set(new_path.layers["1"][new_sign].keys())
+                                order = new_path.layers["1"]["resources"][new_sign] & resources
+                                if order != resources:
+                                    raise Exception("error in reasoning, order should always be equal to resources (2)")
+                                ordered_resources_by_section_name[sign][section_name] = order
                                 for resource in resources:
                                     path.layers[str(layer)][sign][resource] = path.layers["pool"][sign][resource]
                                     del path.layers["pool"][sign][resource]
+                for sign in ["+", "-"]:
+                    names = section_names & set(ordered_resources_by_section_name[sign].keys())
+                    final_order = OrderedSet()
+                    for name in names:
+                        final_order |= ordered_resources_by_section_name[sign][name]
+                    path.layers[str(layer)]["resources"][sign] = final_order
                 directions = new_directions
             del path.layers["pool"]
         return None
